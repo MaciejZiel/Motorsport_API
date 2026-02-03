@@ -1,3 +1,216 @@
-from django.test import TestCase
+from datetime import date
 
-# Create your tests here.
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from .models import Driver, Race, RaceResult, Season, Team
+
+
+class MotorsportApiTests(APITestCase):
+    def setUp(self):
+        self.team_red = Team.objects.create(name="Red Apex", country="Italy")
+        self.team_blue = Team.objects.create(name="Blue Arrow", country="UK")
+
+        self.driver_max = Driver.objects.create(name="Max Fast", team=self.team_red, points=410)
+        self.driver_luca = Driver.objects.create(name="Luca Stone", team=self.team_red, points=180)
+        self.driver_owen = Driver.objects.create(name="Owen Pace", team=self.team_blue, points=250)
+
+        self.season_2026 = Season.objects.create(year=2026, name="World Championship 2026")
+        self.race_1 = Race.objects.create(
+            season=self.season_2026,
+            round_number=1,
+            name="Australian Grand Prix",
+            country="Australia",
+            race_date=date(2026, 3, 15),
+        )
+        self.race_2 = Race.objects.create(
+            season=self.season_2026,
+            round_number=2,
+            name="Spanish Grand Prix",
+            country="Spain",
+            race_date=date(2026, 4, 19),
+        )
+
+        RaceResult.objects.create(race=self.race_1, driver=self.driver_max, position=1, points_earned=25)
+        RaceResult.objects.create(race=self.race_1, driver=self.driver_owen, position=2, points_earned=18)
+        RaceResult.objects.create(race=self.race_2, driver=self.driver_owen, position=1, points_earned=25)
+        RaceResult.objects.create(race=self.race_2, driver=self.driver_max, position=2, points_earned=18)
+
+        User = get_user_model()
+        self.user = User.objects.create_user(username="user", password="testpass123")
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@example.com", password="testpass123"
+        )
+
+    def _token_for(self, username, password):
+        response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": username, "password": password},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response.data["access"]
+
+    def test_public_can_list_drivers(self):
+        response = self.client.get(reverse("api-v1:driver-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 3)
+
+    def test_standings_are_sorted_descending(self):
+        response = self.client.get(reverse("api-v1:driver-standings"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        points = [item["points"] for item in response.data["results"]]
+        self.assertEqual(points, sorted(points, reverse=True))
+
+    def test_filter_drivers_by_team(self):
+        response = self.client.get(reverse("api-v1:driver-list"), {"team": self.team_red.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_teams_list_exposes_driver_count(self):
+        response = self.client.get(reverse("api-v1:team-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        first_team = response.data["results"][0]
+        self.assertIn("driver_count", first_team)
+
+    def test_public_cannot_create_driver(self):
+        payload = {"name": "Guest Driver", "points": 10, "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_non_admin_cannot_create_driver(self):
+        token = self._token_for("user", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {"name": "Member Driver", "points": 55, "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_create_driver(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {"name": "Admin Driver", "points": 99, "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_stats_endpoint(self):
+        response = self.client.get(reverse("api-v1:api-stats"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_teams"], 2)
+        self.assertEqual(response.data["total_drivers"], 3)
+        self.assertEqual(response.data["total_seasons"], 1)
+
+    def test_driver_season_standings(self):
+        response = self.client.get(reverse("api-v1:driver-season-standings"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["season"], 2026)
+        self.assertEqual(response.data["results"][0]["driver_name"], "Max Fast")
+        self.assertEqual(response.data["results"][0]["total_points"], 43)
+
+    def test_constructor_standings(self):
+        response = self.client.get(reverse("api-v1:constructor-season-standings"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["team_name"], "Blue Arrow")
+        self.assertEqual(response.data["results"][0]["total_points"], 43)
+
+    def test_results_filter_by_season(self):
+        response = self.client.get(reverse("api-v1:result-list"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 4)
+
+    def test_admin_can_create_race_result(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        new_driver = Driver.objects.create(name="Erik Volt", team=self.team_blue, points=0)
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": new_driver.id,
+            "position": 3,
+            "points_earned": 15,
+            "fastest_lap": False,
+        }
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_token_refresh_flow(self):
+        token_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+        refresh = token_response.data["refresh"]
+
+        refresh_response = self.client.post(
+            reverse("api-v1:token_refresh"),
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", refresh_response.data)
+
+    def test_public_cannot_create_race(self):
+        payload = {
+            "name": "Monaco Grand Prix",
+            "country": "Monaco",
+            "round_number": 3,
+            "race_date": "2026-05-10",
+            "season_id": self.season_2026.id,
+        }
+        response = self.client.post(reverse("api-v1:race-list"), payload, format="json")
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_non_admin_cannot_create_race_result(self):
+        token = self._token_for("user", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": self.driver_luca.id,
+            "position": 3,
+            "points_earned": 15,
+            "fastest_lap": False,
+        }
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_races_filter_by_season_year(self):
+        response = self.client.get(reverse("api-v1:race-list"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_results_filter_by_driver(self):
+        response = self.client.get(reverse("api-v1:result-list"), {"driver": self.driver_max.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_duplicate_race_position_is_rejected(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": self.driver_luca.id,
+            "position": 1,
+            "points_earned": 10,
+            "fastest_lap": False,
+        }
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_standings_without_season_use_latest(self):
+        season_2025 = Season.objects.create(year=2025, name="World Championship 2025")
+        race_old = Race.objects.create(
+            season=season_2025,
+            round_number=1,
+            name="Old GP",
+            country="Italy",
+            race_date=date(2025, 3, 1),
+        )
+        RaceResult.objects.create(race=race_old, driver=self.driver_luca, position=1, points_earned=99)
+
+        response = self.client.get(reverse("api-v1:driver-season-standings"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["season"], 2026)

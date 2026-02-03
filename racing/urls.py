@@ -1,6 +1,30 @@
-from django.urls import path
-from . import views
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from .views import (
+    DriverViewSet,
+    RaceResultViewSet,
+    RaceViewSet,
+    SeasonViewSet,
+    TeamViewSet,
+    api_stats,
+    constructor_season_standings,
+    driver_season_standings,
+)
+
+router = DefaultRouter()
+router.register("drivers", DriverViewSet, basename="driver")
+router.register("teams", TeamViewSet, basename="team")
+router.register("seasons", SeasonViewSet, basename="season")
+router.register("races", RaceViewSet, basename="race")
+router.register("results", RaceResultViewSet, basename="result")
 
 urlpatterns = [
-    path("drivers/", views.drivers_list, name="drivers-list"),
+    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("stats/", api_stats, name="api-stats"),
+    path("standings/drivers/", driver_season_standings, name="driver-season-standings"),
+    path("standings/constructors/", constructor_season_standings, name="constructor-season-standings"),
+    path("", include(router.urls)),
 ]
