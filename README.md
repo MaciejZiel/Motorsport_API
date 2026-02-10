@@ -73,3 +73,13 @@ python manage.py runserver
 ```bash
 python manage.py test
 ```
+
+## Frontend (Angular)
+Frontend app lives in `frontend/`.
+
+```bash
+npm --prefix frontend install
+npm --prefix frontend run start
+```
+
+By default it uses backend API on `http://127.0.0.1:8000/api/v1`.
