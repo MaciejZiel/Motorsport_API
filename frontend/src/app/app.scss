@@ -8,23 +8,36 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 0.8rem clamp(0.8rem, 2vw, 1.6rem) 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .topbar {
-  position: sticky;
-  top: 0.75rem;
-  z-index: 20;
+  position: relative;
+  z-index: 2;
   border: 1px solid #e5d9c4;
-  background: rgba(253, 248, 239, 0.93);
-  backdrop-filter: blur(7px);
-  border-radius: 16px;
+  background: linear-gradient(140deg, rgba(255, 251, 244, 0.98), rgba(246, 238, 224, 0.98));
+  border-radius: 18px;
   padding: 0.7rem 0.85rem;
-  box-shadow: 0 12px 36px rgba(32, 26, 18, 0.1);
+  box-shadow: 0 10px 30px rgba(32, 26, 18, 0.1);
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
   align-items: center;
   justify-content: space-between;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: -0.48rem;
+  height: 0.48rem;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, rgba(197, 154, 88, 0.25), rgba(197, 154, 88, 0));
+  pointer-events: none;
 }
 
 .brand {
@@ -99,13 +112,21 @@
 }
 
 .app-content {
-  margin-top: 0.95rem;
+  margin-top: 0.2rem;
+  border: 1px solid rgba(229, 217, 196, 0.9);
+  border-radius: 20px;
+  background: rgba(255, 250, 242, 0.66);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 14px 32px rgba(34, 27, 18, 0.08);
 }
 
 @media (max-width: 780px) {
   .topbar {
-    top: 0.5rem;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .topbar::after {
+    left: 0.65rem;
+    right: 0.65rem;
   }
 }
