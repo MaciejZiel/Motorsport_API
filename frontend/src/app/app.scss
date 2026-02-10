@@ -111,6 +111,17 @@
   color: #593f18;
 }
 
+.auth-link {
+  border-color: #c7d9c8;
+  background: #ebf8ea;
+  color: #1e4e2a;
+}
+
+.logout-button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .app-content {
   margin-top: 0.2rem;
   border: 1px solid rgba(229, 217, 196, 0.9);

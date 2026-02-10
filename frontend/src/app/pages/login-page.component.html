@@ -1,0 +1,36 @@
+<div class="login-shell">
+  <section class="login-card">
+    <p class="kicker">Authentication</p>
+    <h1>Sign in</h1>
+    <p class="subtitle">Use Django user credentials to get JWT tokens.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label>
+        <span>Username</span>
+        <input type="text" formControlName="username" autocomplete="username" />
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" formControlName="password" autocomplete="current-password" />
+      </label>
+
+      @if (errorMessage()) {
+        <p class="error">{{ errorMessage() }}</p>
+      }
+
+      <button type="submit" [disabled]="isSubmitting()">
+        @if (isSubmitting()) {
+          Signing in...
+        } @else {
+          Login
+        }
+      </button>
+    </form>
+
+    <p class="hint">
+      Need an account? Create one in Django admin:
+      <a href="http://127.0.0.1:8000/admin/" target="_blank" rel="noopener">/admin</a>
+    </p>
+    <p class="hint"><a routerLink="/">Back to dashboard</a></p>
+  </section>
+</div>

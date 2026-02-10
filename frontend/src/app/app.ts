@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { API_DOCS_URL } from './api.config';
+import { AuthService } from './core/auth.service';
 
 interface NavLink {
   path: string;
@@ -14,6 +15,9 @@ interface NavLink {
   styleUrl: './app.scss'
 })
 export class App {
+  private readonly router = inject(Router);
+  readonly auth = inject(AuthService);
+
   readonly title = 'Motorsport Control Center';
   readonly docsUrl = API_DOCS_URL;
   readonly navLinks: NavLink[] = [
@@ -22,4 +26,9 @@ export class App {
     { path: '/teams', label: 'Teams' },
     { path: '/races', label: 'Races' },
   ];
+
+  async handleLogout(): Promise<void> {
+    this.auth.logout();
+    await this.router.navigateByUrl('/login');
+  }
 }

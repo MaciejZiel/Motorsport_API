@@ -27,6 +27,15 @@ Configured in `src/app/api.config.ts`.
 - `/drivers` Driver list
 - `/teams` Team list
 - `/races` Race calendar list
+- `/login` JWT sign-in page
+
+## JWT login
+
+Frontend sends credentials to:
+
+`POST /api/v1/auth/token/`
+
+On success it stores `access` and `refresh` tokens in browser localStorage.
 
 ## Build and test
 
