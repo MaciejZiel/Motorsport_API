@@ -37,6 +37,13 @@ Frontend sends credentials to:
 
 On success it stores `access` and `refresh` tokens in browser localStorage.
 
+## Protected routes and auth header
+
+- Routes `/drivers`, `/teams`, `/races` require login.
+- Logged-out user is redirected to `/login?next=...`.
+- Logged-in user opening `/login` is redirected to `/`.
+- HTTP requests (except token endpoint) include `Authorization: Bearer <access>` automatically.
+
 ## Build and test
 
 ```bash

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 
@@ -14,6 +14,7 @@ import { AuthService } from '../core/auth.service';
 export class LoginPageComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -35,7 +36,9 @@ export class LoginPageComponent {
     try {
       const { username, password } = this.form.getRawValue();
       await firstValueFrom(this.auth.login(username, password));
-      await this.router.navigateByUrl('/');
+      const requestedPath = this.route.snapshot.queryParamMap.get('next') || '/';
+      const safeTarget = requestedPath.startsWith('/') ? requestedPath : '/';
+      await this.router.navigateByUrl(safeTarget);
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 401) {
         this.errorMessage.set('Invalid username or password.');

@@ -10,14 +10,16 @@
 
     <nav class="main-nav">
       @for (link of navLinks; track link.path) {
-        <a
-          class="nav-link"
-          [routerLink]="link.path"
-          [routerLinkActiveOptions]="{ exact: link.path === '/' }"
-          routerLinkActive="active-link"
-        >
-          {{ link.label }}
-        </a>
+        @if (!link.requiresAuth || auth.isAuthenticated()) {
+          <a
+            class="nav-link"
+            [routerLink]="link.path"
+            [routerLinkActiveOptions]="{ exact: link.path === '/' }"
+            routerLinkActive="active-link"
+          >
+            {{ link.label }}
+          </a>
+        }
       }
       <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
       @if (!auth.isAuthenticated()) {

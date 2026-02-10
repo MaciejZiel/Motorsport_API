@@ -6,6 +6,7 @@ import { AuthService } from './core/auth.service';
 interface NavLink {
   path: string;
   label: string;
+  requiresAuth?: boolean;
 }
 
 @Component({
@@ -22,9 +23,9 @@ export class App {
   readonly docsUrl = API_DOCS_URL;
   readonly navLinks: NavLink[] = [
     { path: '/', label: 'Dashboard' },
-    { path: '/drivers', label: 'Drivers' },
-    { path: '/teams', label: 'Teams' },
-    { path: '/races', label: 'Races' },
+    { path: '/drivers', label: 'Drivers', requiresAuth: true },
+    { path: '/teams', label: 'Teams', requiresAuth: true },
+    { path: '/races', label: 'Races', requiresAuth: true },
   ];
 
   async handleLogout(): Promise<void> {
