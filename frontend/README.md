@@ -21,6 +21,13 @@ This frontend expects backend API at:
 
 Configured in `src/app/api.config.ts`.
 
+## Current routes
+
+- `/` Dashboard (stats + standings)
+- `/drivers` Driver list
+- `/teams` Team list
+- `/races` Race calendar list
+
 ## Build and test
 
 ```bash

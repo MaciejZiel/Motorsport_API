@@ -1,0 +1,43 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Drivers</p>
+      <h1>Driver List</h1>
+      <p>Read-only data from <code>/api/v1/drivers/</code>.</p>
+    </div>
+    <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
+  </header>
+
+  @if (state() === 'loading') {
+    <section class="panel muted-panel">Loading drivers...</section>
+  } @else if (state() === 'error') {
+    <section class="panel error-panel">{{ errorMessage() }}</section>
+  } @else {
+    <section class="panel summary-panel">Found {{ totalCount() }} drivers.</section>
+
+    <section class="panel table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Driver</th>
+            <th>Team</th>
+            <th>Country</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (driver of drivers(); track driver.id; let i = $index) {
+            <tr>
+              <td>{{ i + 1 }}</td>
+              <td>{{ driver.name }}</td>
+              <td>{{ driver.team.name }}</td>
+              <td>{{ driver.team.country }}</td>
+              <td>{{ driver.points }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+</div>

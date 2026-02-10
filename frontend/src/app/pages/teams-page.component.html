@@ -1,0 +1,41 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Teams</p>
+      <h1>Team List</h1>
+      <p>Read-only data from <code>/api/v1/teams/</code>.</p>
+    </div>
+    <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
+  </header>
+
+  @if (state() === 'loading') {
+    <section class="panel muted-panel">Loading teams...</section>
+  } @else if (state() === 'error') {
+    <section class="panel error-panel">{{ errorMessage() }}</section>
+  } @else {
+    <section class="panel summary-panel">Found {{ totalCount() }} teams.</section>
+
+    <section class="panel table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Team</th>
+            <th>Country</th>
+            <th>Drivers</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (team of teams(); track team.id; let i = $index) {
+            <tr>
+              <td>{{ i + 1 }}</td>
+              <td>{{ team.name }}</td>
+              <td>{{ team.country }}</td>
+              <td>{{ team.driver_count ?? '-' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+</div>

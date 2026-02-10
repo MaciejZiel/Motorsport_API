@@ -1,0 +1,45 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Races</p>
+      <h1>Race Calendar</h1>
+      <p>Read-only data from <code>/api/v1/races/</code>.</p>
+    </div>
+    <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
+  </header>
+
+  @if (state() === 'loading') {
+    <section class="panel muted-panel">Loading races...</section>
+  } @else if (state() === 'error') {
+    <section class="panel error-panel">{{ errorMessage() }}</section>
+  } @else {
+    <section class="panel summary-panel">Found {{ totalCount() }} races.</section>
+
+    <section class="panel table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Season</th>
+            <th>Round</th>
+            <th>Race</th>
+            <th>Country</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (race of races(); track race.id; let i = $index) {
+            <tr>
+              <td>{{ i + 1 }}</td>
+              <td>{{ race.season_year }}</td>
+              <td>R{{ race.round_number }}</td>
+              <td>{{ race.name }}</td>
+              <td>{{ race.country }}</td>
+              <td>{{ race.race_date }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+</div>

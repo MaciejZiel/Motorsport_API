@@ -1,123 +1,29 @@
-<div class="page-shell">
-  <header class="hero">
-    <p class="eyebrow">MOTORSPORT APP</p>
-    <h1>Race Control Dashboard</h1>
-    <p class="hero-copy">
-      Angular frontend connected to the Django API. This view is a baseline for standings, stats and
-      future race pages.
-    </p>
-    <div class="hero-actions">
-      <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload data</button>
-      <a [href]="docsUrl" target="_blank" rel="noopener">Open API docs</a>
-    </div>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/">
+      <span class="brand-badge">M</span>
+      <div>
+        <p class="brand-title">{{ title }}</p>
+        <p class="brand-subtitle">Angular frontend for Django API</p>
+      </div>
+    </a>
+
+    <nav class="main-nav">
+      @for (link of navLinks; track link.path) {
+        <a
+          class="nav-link"
+          [routerLink]="link.path"
+          [routerLinkActiveOptions]="{ exact: link.path === '/' }"
+          routerLinkActive="active-link"
+        >
+          {{ link.label }}
+        </a>
+      }
+      <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
+    </nav>
   </header>
 
-  <section class="connection-strip">
-    <span>API endpoint</span>
-    <code>{{ apiBaseUrl }}</code>
-  </section>
-
-  @if (state() === 'loading') {
-    <section class="loading-grid">
-      @for (item of [1, 2, 3, 4, 5, 6]; track item) {
-        <div class="skeleton-card"></div>
-      }
-    </section>
-  } @else if (state() === 'error') {
-    <section class="message message-error">
-      <h2>Backend offline</h2>
-      <p>{{ errorMessage() }}</p>
-    </section>
-  } @else {
-    @if (warningMessage()) {
-      <section class="message message-warning">
-        <h2>Partial data</h2>
-        <p>{{ warningMessage() }}</p>
-      </section>
-    }
-
-    <section class="stats-grid">
-      @for (card of statCards(); track card.label) {
-        <article class="stat-card">
-          <p class="stat-label">{{ card.label }}</p>
-          <p class="stat-value">{{ card.value }}</p>
-          <p class="stat-hint">{{ card.hint }}</p>
-        </article>
-      }
-    </section>
-
-    <section class="standings-grid">
-      <article class="panel">
-        <header class="panel-header">
-          <h2>Driver standings</h2>
-          @if (season()) {
-            <span>Season {{ season() }}</span>
-          }
-        </header>
-
-        @if (driverStandings().length > 0) {
-          <table>
-            <thead>
-              <tr>
-                <th>Pos</th>
-                <th>Driver</th>
-                <th>Team</th>
-                <th>Pts</th>
-                <th>W</th>
-                <th>P</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (driver of driverStandings(); track driver.driver_id; let i = $index) {
-                <tr>
-                  <td>{{ i + 1 }}</td>
-                  <td>{{ driver.driver_name }}</td>
-                  <td>{{ driver.team_name }}</td>
-                  <td>{{ driver.total_points }}</td>
-                  <td>{{ driver.wins }}</td>
-                  <td>{{ driver.podiums }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        } @else {
-          <p class="empty-state">No driver standings yet.</p>
-        }
-      </article>
-
-      <article class="panel">
-        <header class="panel-header">
-          <h2>Constructor standings</h2>
-          @if (season()) {
-            <span>Season {{ season() }}</span>
-          }
-        </header>
-
-        @if (constructorStandings().length > 0) {
-          <table>
-            <thead>
-              <tr>
-                <th>Pos</th>
-                <th>Team</th>
-                <th>Pts</th>
-                <th>W</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (constructor of constructorStandings(); track constructor.team_id; let i = $index) {
-                <tr>
-                  <td>{{ i + 1 }}</td>
-                  <td>{{ constructor.team_name }}</td>
-                  <td>{{ constructor.total_points }}</td>
-                  <td>{{ constructor.wins }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        } @else {
-          <p class="empty-state">No constructor standings yet.</p>
-        }
-      </article>
-    </section>
-  }
+  <main class="app-content">
+    <router-outlet></router-outlet>
+  </main>
 </div>
