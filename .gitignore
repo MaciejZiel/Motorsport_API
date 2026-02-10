@@ -1,24 +1,31 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.egg-info/
-.pytest_cache/
-
-# Virtual env
-.venv/
-venv/
-
-# Django
-db.sqlite3
-staticfiles/
-
-# IDE
-.idea/
-*.iml
-*~
-
-# OS
-.DS_Store
-Thumbs.db
+# Python
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# Virtual env
+.venv/
+venv/
+
+# Django
+db.sqlite3
+staticfiles/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.cache/
+frontend/.vite/
+
+# IDE
+.idea/
+*.iml
+*~
+
+# OS
+.DS_Store
+Thumbs.db
