@@ -19,9 +19,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && gunicorn Motorsport_API.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
     environment:
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ENV: ${DJANGO_ENV:-production}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-in-production}
       DJANGO_DB_ENGINE: postgresql
       POSTGRES_DB: ${POSTGRES_DB:-motorsport_api}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -30,6 +32,14 @@ services:
       POSTGRES_PORT: 5432
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
+      DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-False}
+      DJANGO_CSRF_COOKIE_SECURE: ${DJANGO_CSRF_COOKIE_SECURE:-False}
+      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-False}
+      DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-False}
+      DJANGO_USE_X_FORWARDED_PROTO: ${DJANGO_USE_X_FORWARDED_PROTO:-False}
+      DJANGO_USE_X_FORWARDED_HOST: ${DJANGO_USE_X_FORWARDED_HOST:-False}
     volumes:
       - .:/app
     ports:

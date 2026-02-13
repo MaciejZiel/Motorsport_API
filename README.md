@@ -9,6 +9,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - Filtering, pagination, OpenAPI docs (Swagger/ReDoc)
 - Structured API error handling and application logging
 - PostgreSQL-ready config with SQLite fallback
+- Environment-based production security settings (HTTPS, HSTS, secure cookies)
 - Unit + integration automated tests
 - Dockerized local setup (`docker compose up --build`)
 
@@ -17,6 +18,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - Django + DRF
 - drf-spectacular
 - djangorestframework-simplejwt
+- gunicorn
 - SQLite (default dev)
 - PostgreSQL (production-like setup)
 - Docker + Docker Compose
@@ -81,6 +83,29 @@ docker compose up --build
 ```
 
 Backend will be available on `http://127.0.0.1:8000` and connected to PostgreSQL in Compose.
+Container runtime uses `gunicorn` (`Motorsport_API.wsgi:application`).
+
+## Production security baseline
+Set these in production:
+
+```bash
+export DJANGO_ENV=production
+export DJANGO_DEBUG=False
+export DJANGO_SECRET_KEY='replace-with-a-long-random-secret'
+export DJANGO_SECURE_SSL_REDIRECT=True
+export DJANGO_SESSION_COOKIE_SECURE=True
+export DJANGO_CSRF_COOKIE_SECURE=True
+export DJANGO_SECURE_HSTS_SECONDS=31536000
+export DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+export DJANGO_SECURE_HSTS_PRELOAD=True
+export DJANGO_USE_X_FORWARDED_PROTO=True  # if behind reverse proxy
+export DJANGO_USE_X_FORWARDED_HOST=True   # if behind reverse proxy
+```
+
+Then validate:
+```bash
+python manage.py check --deploy
+```
 
 ## Logging and errors
 - Logging level is controlled by `DJANGO_LOG_LEVEL` (default: `INFO`).
