@@ -67,7 +67,7 @@ to blacklist the current refresh token server-side.
 - Route `/admin` requires staff/superuser role.
 - Logged-out user is redirected to `/login?next=...`.
 - Logged-in user opening `/login` is redirected to `/`.
-- HTTP requests (except token and token refresh endpoints) include `Authorization: Bearer <access>` automatically.
+- HTTP requests (except register, token, and token refresh endpoints) include `Authorization: Bearer <access>` automatically.
 - Frontend uses `GET /api/v1/auth/me/` to resolve current user role and admin access.
 - On API `401`, frontend uses the refresh token (`POST /api/v1/auth/token/refresh/`) and retries the failed request once.
 
