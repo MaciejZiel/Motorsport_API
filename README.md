@@ -89,6 +89,27 @@ Compose starts three services: `db` (PostgreSQL), `api` (Django + gunicorn), and
 
 Frontend requests `/api/*` are proxied to the backend service in Docker.
 
+## CD pipeline (GitHub Actions)
+- Workflow file: `.github/workflows/cd.yml`
+- Triggers:
+  - Git tag push matching `v*` (automatic image publish to GHCR)
+  - Manual trigger (`workflow_dispatch`) with options:
+    - `publish_images` (default `true`)
+    - `deploy` (default `false`)
+    - `environment` (`staging` or `production`)
+- Outputs:
+  - Backend image: `ghcr.io/<owner>/motorsport-api-backend`
+  - Frontend image: `ghcr.io/<owner>/motorsport-api-frontend`
+- Built-in verification:
+  - Backend image smoke test (`/api/docs/`)
+  - Frontend image smoke test (`/`)
+
+Optional deployment integration (manual workflow run):
+- Required secret: `DEPLOY_WEBHOOK_URL`
+- Optional secret: `DEPLOY_HEALTHCHECK_URL`
+- The deploy job posts JSON payload with selected environment and published image tags.
+- Use GitHub Environments (`staging` / `production`) for approval gates and protection rules.
+
 ## Production security baseline
 Set these in production:
 

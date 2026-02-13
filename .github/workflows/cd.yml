@@ -1,0 +1,205 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_images:
+        description: "Push images to GHCR"
+        required: true
+        type: boolean
+        default: true
+      deploy:
+        description: "Trigger deployment webhook"
+        required: true
+        type: boolean
+        default: false
+      environment:
+        description: "Target environment for manual deployment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release:
+    name: Build, Smoke Test, Publish Images
+    runs-on: ubuntu-latest
+    outputs:
+      backend_image: ${{ steps.meta.outputs.backend_image }}
+      frontend_image: ${{ steps.meta.outputs.frontend_image }}
+      publish: ${{ steps.policy.outputs.publish }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decide publish policy
+        id: policy
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ inputs.publish_images }}" == "true" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute image tags
+        id: meta
+        run: |
+          OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          SHORT_SHA="${GITHUB_SHA::7}"
+
+          BACKEND_BASE="ghcr.io/${OWNER_LC}/motorsport-api-backend"
+          FRONTEND_BASE="ghcr.io/${OWNER_LC}/motorsport-api-frontend"
+
+          BACKEND_CANONICAL="${BACKEND_BASE}:sha-${SHORT_SHA}"
+          FRONTEND_CANONICAL="${FRONTEND_BASE}:sha-${SHORT_SHA}"
+
+          BACKEND_TAGS="${BACKEND_CANONICAL}"
+          FRONTEND_TAGS="${FRONTEND_CANONICAL}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+            BACKEND_TAGS="${BACKEND_TAGS}"$'\n'"${BACKEND_BASE}:${RELEASE_TAG}"$'\n'"${BACKEND_BASE}:latest"
+            FRONTEND_TAGS="${FRONTEND_TAGS}"$'\n'"${FRONTEND_BASE}:${RELEASE_TAG}"$'\n'"${FRONTEND_BASE}:latest"
+          fi
+
+          echo "backend_image=${BACKEND_CANONICAL}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${FRONTEND_CANONICAL}" >> "$GITHUB_OUTPUT"
+          echo "backend_tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${BACKEND_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "frontend_tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${FRONTEND_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Build backend image
+        run: docker build -t "${{ steps.meta.outputs.backend_image }}" -f Dockerfile .
+
+      - name: Smoke test backend image
+        run: |
+          set -euo pipefail
+          docker run -d --name backend-smoke -p 18000:8000 "${{ steps.meta.outputs.backend_image }}"
+          trap 'docker logs backend-smoke || true; docker rm -f backend-smoke || true' EXIT
+          for _ in {1..40}; do
+            if curl -fsS "http://127.0.0.1:18000/api/docs/" > /dev/null; then
+              echo "Backend smoke test passed."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend smoke test failed."
+          exit 1
+
+      - name: Build frontend image
+        run: docker build -t "${{ steps.meta.outputs.frontend_image }}" -f frontend/Dockerfile frontend
+
+      - name: Smoke test frontend image
+        run: |
+          set -euo pipefail
+          docker run -d --name frontend-smoke -p 18080:80 "${{ steps.meta.outputs.frontend_image }}"
+          trap 'docker logs frontend-smoke || true; docker rm -f frontend-smoke || true' EXIT
+          for _ in {1..30}; do
+            if curl -fsS "http://127.0.0.1:18080/" > /dev/null; then
+              echo "Frontend smoke test passed."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Frontend smoke test failed."
+          exit 1
+
+      - name: Login to GHCR
+        if: steps.policy.outputs.publish == 'true'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push backend image tags
+        if: steps.policy.outputs.publish == 'true'
+        run: |
+          while IFS= read -r tag; do
+            [ -n "${tag}" ] || continue
+            docker tag "${{ steps.meta.outputs.backend_image }}" "${tag}"
+            docker push "${tag}"
+          done <<< "${{ steps.meta.outputs.backend_tags }}"
+
+      - name: Push frontend image tags
+        if: steps.policy.outputs.publish == 'true'
+        run: |
+          while IFS= read -r tag; do
+            [ -n "${tag}" ] || continue
+            docker tag "${{ steps.meta.outputs.frontend_image }}" "${tag}"
+            docker push "${tag}"
+          done <<< "${{ steps.meta.outputs.frontend_tags }}"
+
+  deploy:
+    name: Trigger Deployment
+    runs-on: ubuntu-latest
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Ensure deploy webhook is configured
+        run: |
+          if [[ -z "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]]; then
+            echo "DEPLOY_WEBHOOK_URL secret is required for deployment."
+            exit 1
+          fi
+
+      - name: Trigger deployment webhook
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          DEPLOY_HEALTHCHECK_URL: ${{ secrets.DEPLOY_HEALTHCHECK_URL }}
+          BACKEND_IMAGE: ${{ needs.release.outputs.backend_image }}
+          FRONTEND_IMAGE: ${{ needs.release.outputs.frontend_image }}
+          TARGET_ENV: ${{ inputs.environment }}
+          PUBLISH_ENABLED: ${{ needs.release.outputs.publish }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${PUBLISH_ENABLED}" != "true" ]]; then
+            echo "Images were not published in this run. Set publish_images=true before deploy."
+            exit 1
+          fi
+
+          payload="$(cat <<JSON
+          {
+            "environment": "${TARGET_ENV}",
+            "backend_image": "${BACKEND_IMAGE}",
+            "frontend_image": "${FRONTEND_IMAGE}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "ref": "${GITHUB_REF_NAME}",
+            "sha": "${GITHUB_SHA}"
+          }
+          JSON
+          )"
+
+          curl -fsS -X POST "${DEPLOY_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d "${payload}"
+
+          if [[ -z "${DEPLOY_HEALTHCHECK_URL}" ]]; then
+            echo "DEPLOY_HEALTHCHECK_URL not configured; skipping remote healthcheck."
+            exit 0
+          fi
+
+          for _ in {1..30}; do
+            if curl -fsS "${DEPLOY_HEALTHCHECK_URL}" > /dev/null; then
+              echo "Deployment healthcheck passed."
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "Deployment healthcheck failed."
+          exit 1
