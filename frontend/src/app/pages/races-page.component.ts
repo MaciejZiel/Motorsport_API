@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -65,7 +66,7 @@ export class RacesPageComponent {
       this.races.set([]);
       this.hasNextPage.set(false);
       this.hasPreviousPage.set(false);
-      this.errorMessage.set('Cannot load races list from API.');
+      this.errorMessage.set(this.resolveErrorMessage(error));
       this.state.set('error');
     }
   }
@@ -98,6 +99,17 @@ export class RacesPageComponent {
     return (this.currentPage() - 1) * this.pageSize + index + 1;
   }
 
+  hasActiveFilters(): boolean {
+    return Boolean(this.seasonFilter.trim() || this.countryFilter.trim());
+  }
+
+  emptyStateMessage(): string {
+    if (this.hasActiveFilters()) {
+      return 'No races match current filters.';
+    }
+    return 'No races available yet.';
+  }
+
   private parseOptionalPositiveInteger(value: string): number | undefined {
     const normalized = value.trim();
     if (!normalized) {
@@ -108,6 +120,23 @@ export class RacesPageComponent {
       return undefined;
     }
     return parsed;
+  }
+
+  private resolveErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Cannot connect to backend API.';
+      }
+
+      const payload = error.error;
+      if (payload && typeof payload === 'object' && 'detail' in payload) {
+        const detail = String((payload as { detail: unknown }).detail ?? '').trim();
+        if (detail) {
+          return detail;
+        }
+      }
+    }
+    return 'Cannot load races list from API.';
   }
 
   private async navigateWithQueryParams(page: number): Promise<void> {

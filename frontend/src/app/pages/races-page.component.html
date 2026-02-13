@@ -30,45 +30,65 @@
   @if (state() === 'loading') {
     <section class="panel muted-panel">Loading races...</section>
   } @else if (state() === 'error') {
-    <section class="panel error-panel">{{ errorMessage() }}</section>
-  } @else {
-    <section class="panel summary-panel">
-      <p>Found {{ totalCount() }} races. Page {{ currentPage() }}.</p>
-      <div class="pagination-actions">
-        <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
-          Previous
-        </button>
-        <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
-          Next
-        </button>
+    <section class="panel error-panel">
+      <p>{{ errorMessage() }}</p>
+      <div class="message-actions">
+        <button type="button" (click)="reloadData()">Retry</button>
+        @if (hasActiveFilters()) {
+          <button type="button" class="secondary-btn" (click)="clearFilters()">Clear filters</button>
+        }
       </div>
     </section>
-
-    <section class="panel table-panel">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Season</th>
-            <th>Round</th>
-            <th>Race</th>
-            <th>Country</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (race of races(); track race.id; let i = $index) {
-            <tr>
-              <td>{{ rowNumber(i) }}</td>
-              <td>{{ race.season_year }}</td>
-              <td>R{{ race.round_number }}</td>
-              <td>{{ race.name }}</td>
-              <td>{{ race.country }}</td>
-              <td>{{ race.race_date }}</td>
-            </tr>
+  } @else {
+    @if (races().length === 0) {
+      <section class="panel empty-panel">
+        <p>{{ emptyStateMessage() }}</p>
+        <div class="message-actions">
+          <button type="button" (click)="reloadData()">Retry</button>
+          @if (hasActiveFilters()) {
+            <button type="button" class="secondary-btn" (click)="clearFilters()">Clear filters</button>
           }
-        </tbody>
-      </table>
-    </section>
+        </div>
+      </section>
+    } @else {
+      <section class="panel summary-panel">
+        <p>Found {{ totalCount() }} races. Page {{ currentPage() }}.</p>
+        <div class="pagination-actions">
+          <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
+            Previous
+          </button>
+          <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
+            Next
+          </button>
+        </div>
+      </section>
+
+      <section class="panel table-panel">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Season</th>
+              <th>Round</th>
+              <th>Race</th>
+              <th>Country</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (race of races(); track race.id; let i = $index) {
+              <tr>
+                <td>{{ rowNumber(i) }}</td>
+                <td>{{ race.season_year }}</td>
+                <td>R{{ race.round_number }}</td>
+                <td>{{ race.name }}</td>
+                <td>{{ race.country }}</td>
+                <td>{{ race.race_date }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
   }
 </div>
