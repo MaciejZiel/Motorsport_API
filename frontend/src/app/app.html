@@ -8,28 +8,43 @@
       </div>
     </a>
 
-    <nav class="main-nav">
-      @for (link of navLinks; track link.path) {
-        @if (!link.requiresAuth || auth.isAuthenticated()) {
-          <a
-            class="nav-link"
-            [routerLink]="link.path"
-            [routerLinkActiveOptions]="{ exact: link.path === '/' }"
-            routerLinkActive="active-link"
-          >
-            {{ link.label }}
-          </a>
+    <div class="topbar-right">
+      <button
+        class="theme-toggle"
+        type="button"
+        (click)="toggleTheme()"
+        [attr.aria-label]="isDarkMode() ? 'Switch to light mode' : 'Switch to dark mode'"
+      >
+        @if (isDarkMode()) {
+          <span>Light mode</span>
+        } @else {
+          <span>Dark mode</span>
         }
-      }
-      <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
-      @if (!auth.isAuthenticated()) {
-        <a class="nav-link auth-link" routerLink="/login" routerLinkActive="active-link">Login</a>
-      } @else {
-        <button class="nav-link auth-link logout-button" type="button" (click)="handleLogout()">
-          Logout
-        </button>
-      }
-    </nav>
+      </button>
+
+      <nav class="main-nav">
+        @for (link of navLinks; track link.path) {
+          @if (!link.requiresAuth || auth.isAuthenticated()) {
+            <a
+              class="nav-link"
+              [routerLink]="link.path"
+              [routerLinkActiveOptions]="{ exact: link.path === '/' }"
+              routerLinkActive="active-link"
+            >
+              {{ link.label }}
+            </a>
+          }
+        }
+        <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
+        @if (!auth.isAuthenticated()) {
+          <a class="nav-link auth-link" routerLink="/login" routerLinkActive="active-link">Login</a>
+        } @else {
+          <button class="nav-link auth-link logout-button" type="button" (click)="handleLogout()">
+            Logout
+          </button>
+        }
+      </nav>
+    </div>
   </header>
 
   <main class="app-content">

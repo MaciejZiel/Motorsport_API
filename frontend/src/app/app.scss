@@ -16,11 +16,11 @@
 .topbar {
   position: relative;
   z-index: 2;
-  border: 1px solid #e5d9c4;
-  background: linear-gradient(140deg, rgba(255, 251, 244, 0.98), rgba(246, 238, 224, 0.98));
+  border: 1px solid var(--shell-topbar-border);
+  background: linear-gradient(140deg, var(--shell-topbar-bg-start), var(--shell-topbar-bg-end));
   border-radius: 18px;
   padding: 0.7rem 0.85rem;
-  box-shadow: 0 10px 30px rgba(32, 26, 18, 0.1);
+  box-shadow: var(--shell-topbar-shadow);
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
@@ -36,7 +36,7 @@
   bottom: -0.48rem;
   height: 0.48rem;
   border-radius: 0 0 12px 12px;
-  background: linear-gradient(180deg, rgba(197, 154, 88, 0.25), rgba(197, 154, 88, 0));
+  background: linear-gradient(180deg, var(--shell-topbar-accent-start), var(--shell-topbar-accent-end));
   pointer-events: none;
 }
 
@@ -45,7 +45,7 @@
   align-items: center;
   gap: 0.65rem;
   text-decoration: none;
-  color: #171b20;
+  color: var(--shell-brand-text);
   min-width: fit-content;
 }
 
@@ -58,8 +58,8 @@
   justify-content: center;
   font-family: Impact, 'Arial Black', sans-serif;
   font-size: 1rem;
-  color: #fff;
-  background: linear-gradient(125deg, #c12f1e 0%, #ff7f2f 100%);
+  color: var(--shell-badge-text);
+  background: linear-gradient(125deg, var(--shell-badge-bg-start) 0%, var(--shell-badge-bg-end) 100%);
 }
 
 .brand-title {
@@ -72,23 +72,69 @@
 .brand-subtitle {
   margin: 0;
   font-size: 0.74rem;
-  color: #636872;
+  color: var(--shell-brand-subtitle);
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55rem;
+  max-width: 100%;
+}
+
+.theme-toggle {
+  border: 1px solid var(--theme-toggle-border);
+  border-radius: 999px;
+  background: var(--theme-toggle-bg);
+  color: var(--theme-toggle-text);
+  box-shadow: var(--theme-toggle-shadow);
+  padding: 0.38rem 0.78rem;
+  font-size: 0.77rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.theme-toggle::before {
+  content: '';
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 50%;
+  background: var(--theme-toggle-dot);
+  box-shadow: 0 0 0 2px var(--theme-toggle-dot-ring);
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  background: var(--theme-toggle-bg-hover);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--theme-toggle-focus);
+  outline-offset: 2px;
 }
 
 .main-nav {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
 .nav-link {
   padding: 0.42rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid #d5dbe4;
-  background: #f6f9ff;
+  border: 1px solid var(--shell-nav-border);
+  background: var(--shell-nav-bg);
   text-decoration: none;
-  color: #243344;
+  color: var(--shell-nav-text);
   font-size: 0.82rem;
   font-weight: 700;
   transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
@@ -96,25 +142,25 @@
 
 .nav-link:hover {
   transform: translateY(-1px);
-  box-shadow: 0 5px 12px rgba(17, 33, 52, 0.12);
+  box-shadow: var(--shell-nav-hover-shadow);
 }
 
 .active-link {
-  border-color: #12253f;
-  background: #12253f;
-  color: #fff;
+  border-color: var(--shell-nav-active-border);
+  background: var(--shell-nav-active-bg);
+  color: var(--shell-nav-active-text);
 }
 
 .docs-link {
-  border-color: #e4c89a;
-  background: #fff4dd;
-  color: #593f18;
+  border-color: var(--shell-nav-docs-border);
+  background: var(--shell-nav-docs-bg);
+  color: var(--shell-nav-docs-text);
 }
 
 .auth-link {
-  border-color: #c7d9c8;
-  background: #ebf8ea;
-  color: #1e4e2a;
+  border-color: var(--shell-nav-auth-border);
+  background: var(--shell-nav-auth-bg);
+  color: var(--shell-nav-auth-text);
 }
 
 .logout-button {
@@ -124,10 +170,10 @@
 
 .app-content {
   margin-top: 0.2rem;
-  border: 1px solid rgba(229, 217, 196, 0.9);
+  border: 1px solid var(--shell-content-border);
   border-radius: 20px;
-  background: rgba(255, 250, 242, 0.66);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 14px 32px rgba(34, 27, 18, 0.08);
+  background: var(--shell-content-bg);
+  box-shadow: var(--shell-content-shadow);
 }
 
 @media (max-width: 780px) {
@@ -139,5 +185,18 @@
   .topbar::after {
     left: 0.65rem;
     right: 0.65rem;
+  }
+
+  .topbar-right {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .theme-toggle {
+    align-self: flex-end;
+  }
+
+  .main-nav {
+    justify-content: flex-start;
   }
 }
