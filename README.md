@@ -32,6 +32,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `GET /api/v1/standings/drivers/?season=2026`
 - `GET /api/v1/standings/constructors/?season=2026`
 - `GET /api/v1/stats/`
+- `GET /api/v1/auth/me/`
 - `POST /api/v1/auth/register/`
 - `POST /api/v1/auth/token/`
 - `POST /api/v1/auth/token/refresh/`

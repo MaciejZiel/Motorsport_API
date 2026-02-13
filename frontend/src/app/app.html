@@ -22,9 +22,12 @@
         }
       </button>
 
-      <nav class="main-nav">
-        @for (link of navLinks; track link.path) {
-          @if (!link.requiresAuth || auth.isAuthenticated()) {
+        <nav class="main-nav">
+          @for (link of navLinks; track link.path) {
+          @if (
+            (!link.requiresAuth || auth.isAuthenticated()) &&
+            (!link.requiresAdmin || auth.isAdmin())
+          ) {
             <a
               class="nav-link"
               [routerLink]="link.path"

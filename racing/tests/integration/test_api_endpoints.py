@@ -158,6 +158,20 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
         self.assertIn("access", refresh_response.data)
 
+    def test_auth_me_requires_authentication(self):
+        response = self.client.get(reverse("api-v1:auth_me"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_auth_me_returns_current_user_profile(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.get(reverse("api-v1:auth_me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "admin")
+        self.assertTrue(response.data["is_staff"])
+        self.assertTrue(response.data["is_superuser"])
+
     def test_register_creates_user_and_returns_tokens(self):
         payload = {
             "username": "newfan",

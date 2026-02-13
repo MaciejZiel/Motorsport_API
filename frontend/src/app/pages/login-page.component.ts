@@ -36,6 +36,7 @@ export class LoginPageComponent {
     try {
       const { username, password } = this.form.getRawValue();
       await firstValueFrom(this.auth.login(username, password));
+      await firstValueFrom(this.auth.ensureCurrentUser());
       const requestedPath = this.route.snapshot.queryParamMap.get('next') || '/';
       const safeTarget = requestedPath.startsWith('/') ? requestedPath : '/';
       await this.router.navigateByUrl(safeTarget);

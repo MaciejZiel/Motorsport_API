@@ -39,6 +39,7 @@ Configured in `src/app/api.config.ts` and routed through Angular proxy config:
 - `/teams/:id` Team detail
 - `/races` Race calendar list
 - `/races/:id` Race detail
+- `/admin` Admin workspace (staff only)
 - `/login` JWT sign-in page
 - `/register` JWT sign-up page
 
@@ -57,9 +58,11 @@ Frontend can create a user account via:
 ## Protected routes and auth header
 
 - Routes `/drivers`, `/drivers/:id`, `/teams`, `/teams/:id`, `/races`, `/races/:id` require login.
+- Route `/admin` requires staff/superuser role.
 - Logged-out user is redirected to `/login?next=...`.
 - Logged-in user opening `/login` is redirected to `/`.
 - HTTP requests (except token and token refresh endpoints) include `Authorization: Bearer <access>` automatically.
+- Frontend uses `GET /api/v1/auth/me/` to resolve current user role and admin access.
 - On API `401`, frontend uses the refresh token (`POST /api/v1/auth/token/refresh/`) and retries the failed request once.
 
 ## UI behavior

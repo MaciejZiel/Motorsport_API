@@ -1,0 +1,78 @@
+.intro-panel p {
+  margin: 0;
+  color: #505763;
+}
+
+.links-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-link-card {
+  display: block;
+  border: 1px solid #d9c8ad;
+  border-radius: 14px;
+  background: #fff6e8;
+  padding: 0.8rem;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.admin-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(17, 33, 52, 0.12);
+  border-color: #bda278;
+}
+
+.admin-link-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.admin-link-card p {
+  margin: 0;
+  color: #505763;
+  font-size: 0.9rem;
+}
+
+.admin-link-card span {
+  display: inline-block;
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #234d81;
+}
+
+:host-context([data-theme='dark']) .intro-panel p,
+:host-context([data-theme='dark']) .admin-link-card p {
+  color: #afbdd1;
+}
+
+:host-context([data-theme='dark']) .admin-link-card {
+  background: #162437;
+  border-color: #3b5375;
+  color: #eaf1fd;
+}
+
+:host-context([data-theme='dark']) .admin-link-card:hover {
+  box-shadow: 0 8px 22px rgba(2, 8, 16, 0.45);
+  border-color: #7ab4ff;
+}
+
+:host-context([data-theme='dark']) .admin-link-card span {
+  color: #9ec8ff;
+}
+
+@media (max-width: 980px) {
+  .links-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .links-grid {
+    grid-template-columns: 1fr;
+  }
+}

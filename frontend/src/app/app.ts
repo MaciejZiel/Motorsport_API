@@ -8,6 +8,7 @@ interface NavLink {
   path: string;
   label: string;
   requiresAuth?: boolean;
+  requiresAdmin?: boolean;
 }
 
 type ThemeMode = 'light' | 'dark';
@@ -31,6 +32,7 @@ export class App {
   readonly docsUrl = API_DOCS_URL;
   readonly navLinks: NavLink[] = [
     { path: '/', label: 'Dashboard' },
+    { path: '/admin', label: 'Admin', requiresAuth: true, requiresAdmin: true },
     { path: '/drivers', label: 'Drivers', requiresAuth: true },
     { path: '/teams', label: 'Teams', requiresAuth: true },
     { path: '/races', label: 'Races', requiresAuth: true },
@@ -38,6 +40,9 @@ export class App {
 
   constructor() {
     this.applyTheme(this.theme());
+    if (this.auth.isAuthenticated()) {
+      this.auth.ensureCurrentUser().subscribe();
+    }
   }
 
   toggleTheme(): void {

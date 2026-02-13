@@ -1,0 +1,28 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Admin</p>
+      <h1>Admin Workspace</h1>
+      <p>Staff-only area for editing platform data.</p>
+    </div>
+  </header>
+
+  <section class="panel intro-panel">
+    <p>
+      Use the Django admin modules below to manage records safely. API write permissions remain enforced on the
+      backend.
+    </p>
+  </section>
+
+  <section class="panel links-panel">
+    <div class="links-grid">
+      @for (item of links; track item.href) {
+        <a class="admin-link-card" [href]="item.href" target="_blank" rel="noopener">
+          <h2>{{ item.label }}</h2>
+          <p>{{ item.description }}</p>
+          <span>Open admin module</span>
+        </a>
+      }
+    </div>
+  </section>
+</div>

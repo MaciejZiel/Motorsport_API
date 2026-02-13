@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth.guards';
+import { adminGuard, authGuard, guestGuard } from './core/auth.guards';
+import { AdminPageComponent } from './pages/admin-page.component';
 import { DashboardPageComponent } from './pages/dashboard-page.component';
 import { DriverDetailPageComponent } from './pages/driver-detail-page.component';
 import { DriversPageComponent } from './pages/drivers-page.component';
@@ -12,6 +13,7 @@ import { TeamsPageComponent } from './pages/teams-page.component';
 
 export const routes: Routes = [
   { path: '', component: DashboardPageComponent },
+  { path: 'admin', component: AdminPageComponent, canActivate: [adminGuard] },
   { path: 'drivers', component: DriversPageComponent, canActivate: [authGuard] },
   { path: 'drivers/:id', component: DriverDetailPageComponent, canActivate: [authGuard] },
   { path: 'teams', component: TeamsPageComponent, canActivate: [authGuard] },

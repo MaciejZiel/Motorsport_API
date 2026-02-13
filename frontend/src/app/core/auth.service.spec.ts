@@ -72,12 +72,38 @@ describe('AuthService', () => {
       password: 'StrongPass123!',
       password_confirm: 'StrongPass123!',
     });
-    request.flush({ access: accessToken, refresh: refreshToken, user: { id: 1, username: 'newfan' } });
+    request.flush({
+      access: accessToken,
+      refresh: refreshToken,
+      user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
+    });
 
     expect(service.getAccessToken()).toBe(accessToken);
     expect(service.getRefreshToken()).toBe(refreshToken);
     expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBe(accessToken);
     expect(window.sessionStorage.getItem(REFRESH_TOKEN_KEY)).toBe(refreshToken);
+  });
+
+  it('loads current user profile when authenticated', async () => {
+    const accessToken = buildJwt(3600);
+    const refreshToken = buildJwt(7200);
+
+    service.login('admin', 'testpass123').subscribe();
+    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
+    loginRequest.flush({ access: accessToken, refresh: refreshToken });
+
+    const profilePromise = firstValueFrom(service.ensureCurrentUser());
+
+    const profileRequest = httpMock.expectOne(`${API_BASE_URL}/auth/me/`);
+    profileRequest.flush({ id: 1, username: 'admin', is_staff: true, is_superuser: true });
+
+    await expect(profilePromise).resolves.toEqual({
+      id: 1,
+      username: 'admin',
+      is_staff: true,
+      is_superuser: true,
+    });
+    expect(service.isAdmin()).toBe(true);
   });
 
   it('refreshes access token and keeps old refresh token if refresh response does not return new one', async () => {

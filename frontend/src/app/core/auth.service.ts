@@ -1,11 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, finalize, map, shareReplay, tap, throwError } from 'rxjs';
+import { Observable, catchError, finalize, map, of, shareReplay, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../api.config';
-import { TokenPair } from './auth.types';
+import { AuthUser, RegisterResponse, TokenPair } from './auth.types';
 
 const ACCESS_TOKEN_KEY = 'motorsport_access_token';
 const REFRESH_TOKEN_KEY = 'motorsport_refresh_token';
+const CURRENT_USER_KEY = 'motorsport_current_user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -14,9 +15,13 @@ export class AuthService {
 
   private readonly accessToken = signal<string | null>(this.readStorage(ACCESS_TOKEN_KEY));
   private readonly refreshToken = signal<string | null>(this.readStorage(REFRESH_TOKEN_KEY));
+  private readonly currentUser = signal<AuthUser | null>(this.readUserStorage());
 
   readonly isAuthenticated = computed(
     () => this.isTokenUsable(this.accessToken()) || this.isTokenUsable(this.refreshToken())
+  );
+  readonly isAdmin = computed(
+    () => Boolean(this.currentUser()?.is_staff || this.currentUser()?.is_superuser)
   );
 
   login(username: string, password: string): Observable<TokenPair> {
@@ -27,12 +32,21 @@ export class AuthService {
 
   register(username: string, password: string, passwordConfirm: string): Observable<TokenPair> {
     return this.http
-      .post<TokenPair>(`${API_BASE_URL}/auth/register/`, {
+      .post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, {
         username,
         password,
         password_confirm: passwordConfirm,
       })
-      .pipe(tap((tokens) => this.setTokens(tokens)));
+      .pipe(
+        tap((response) => {
+          this.setTokens(response);
+          this.setCurrentUser(response.user);
+        }),
+        map((response) => ({
+          access: response.access,
+          refresh: response.refresh,
+        }))
+      );
   }
 
   refreshAccessToken(): Observable<string> {
@@ -72,6 +86,29 @@ export class AuthService {
     this.clearTokens();
   }
 
+  ensureCurrentUser(): Observable<AuthUser | null> {
+    const existingUser = this.currentUser();
+    if (existingUser) {
+      return of(existingUser);
+    }
+
+    if (!this.isAuthenticated()) {
+      return of(null);
+    }
+
+    return this.http.get<AuthUser>(`${API_BASE_URL}/auth/me/`).pipe(
+      tap((user) => this.setCurrentUser(user)),
+      catchError(() => {
+        this.clearTokens();
+        return of(null);
+      })
+    );
+  }
+
+  getCurrentUser(): AuthUser | null {
+    return this.currentUser();
+  }
+
   getAccessToken(): string | null {
     return this.readValidToken(
       this.accessToken(),
@@ -89,6 +126,7 @@ export class AuthService {
   }
 
   clearTokens(): void {
+    this.setCurrentUser(null);
     this.setTokens({ access: '', refresh: '' });
   }
 
@@ -99,6 +137,12 @@ export class AuthService {
     this.refreshToken.set(refresh);
     this.writeStorage(ACCESS_TOKEN_KEY, access);
     this.writeStorage(REFRESH_TOKEN_KEY, refresh);
+  }
+
+  private setCurrentUser(user: AuthUser | null): void {
+    this.currentUser.set(user);
+    const serialized = user ? JSON.stringify(user) : null;
+    this.writeStorage(CURRENT_USER_KEY, serialized);
   }
 
   private readStorage(key: string): string | null {
@@ -126,6 +170,26 @@ export class AuthService {
       return null;
     }
     return window.sessionStorage;
+  }
+
+  private readUserStorage(): AuthUser | null {
+    const raw = this.readStorage(CURRENT_USER_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as AuthUser;
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+      if (typeof parsed.id !== 'number' || typeof parsed.username !== 'string') {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
   }
 
   private readValidToken(
