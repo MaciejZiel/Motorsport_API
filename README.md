@@ -114,9 +114,9 @@ python manage.py check --deploy
 
 ## Tests
 ```bash
-python manage.py test
-python manage.py test racing.tests.unit
-python manage.py test racing.tests.integration
+pytest
+pytest racing/tests/unit
+pytest racing/tests/integration
 ```
 
 ## Frontend (Angular)
