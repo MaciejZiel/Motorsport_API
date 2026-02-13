@@ -67,7 +67,7 @@
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              <th class="col-index">#</th>
               <th>Team</th>
               <th>Country</th>
               <th>Drivers</th>
@@ -76,7 +76,7 @@
           <tbody>
             @for (team of teams(); track team.id; let i = $index) {
               <tr>
-                <td>{{ rowNumber(i) }}</td>
+                <td class="col-index">{{ rowNumber(i) }}</td>
                 <td><a class="row-link" [routerLink]="['/teams', team.id]">{{ team.name }}</a></td>
                 <td>{{ team.country }}</td>
                 <td>{{ team.driver_count ?? '-' }}</td>

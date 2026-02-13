@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { formatApiDate } from '../core/date-format.utils';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Race } from '../core/motorsport-api.types';
 
@@ -17,6 +18,7 @@ type LoadState = 'loading' | 'ready' | 'error';
 export class RaceDetailPageComponent {
   private readonly api = inject(MotorsportApiService);
   private readonly route = inject(ActivatedRoute);
+  readonly formatRaceDate = formatApiDate;
 
   readonly state = signal<LoadState>('loading');
   readonly errorMessage = signal<string | null>(null);

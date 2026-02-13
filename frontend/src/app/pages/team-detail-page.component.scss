@@ -128,7 +128,7 @@ button,
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 460px;
+  min-width: 420px;
 }
 
 th,
@@ -161,5 +161,9 @@ a {
 @media (max-width: 760px) {
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .col-index {
+    display: none;
   }
 }

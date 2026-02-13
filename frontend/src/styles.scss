@@ -216,6 +216,30 @@ body {
   color: #9ec8ff;
 }
 
+:root[data-theme='dark'] .row-link,
+:root[data-theme='dark'] .value a {
+  color: #9ec8ff;
+}
+
+:root[data-theme='dark'] .back-link {
+  background: #162a42;
+  border-color: #47668f;
+  color: #e8f1ff;
+}
+
+:root[data-theme='dark'] .secondary-link {
+  background: #425a79;
+  color: #f4f8ff;
+}
+
+:root[data-theme='dark'] .value {
+  color: #edf4ff;
+}
+
+:root[data-theme='dark'] .muted-copy {
+  color: #afbccf;
+}
+
 :root[data-theme='dark'] .hero {
   background: linear-gradient(125deg, #1a2a3e 0%, #243d5c 42%, #ba7532 100%);
   color: #f1f6ff;

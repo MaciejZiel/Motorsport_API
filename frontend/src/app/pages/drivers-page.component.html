@@ -89,20 +89,20 @@
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              <th class="col-index">#</th>
               <th>Driver</th>
               <th>Team</th>
-              <th>Country</th>
+              <th class="col-country">Country</th>
               <th>Points</th>
             </tr>
           </thead>
           <tbody>
             @for (driver of drivers(); track driver.id; let i = $index) {
               <tr>
-                <td>{{ rowNumber(i) }}</td>
+                <td class="col-index">{{ rowNumber(i) }}</td>
                 <td><a class="row-link" [routerLink]="['/drivers', driver.id]">{{ driver.name }}</a></td>
                 <td><a class="row-link" [routerLink]="['/teams', driver.team.id]">{{ driver.team.name }}</a></td>
-                <td>{{ driver.team.country }}</td>
+                <td class="col-country">{{ driver.team.country }}</td>
                 <td>{{ driver.points }}</td>
               </tr>
             }

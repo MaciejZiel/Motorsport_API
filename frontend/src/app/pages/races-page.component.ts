@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { formatApiDate } from '../core/date-format.utils';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Race } from '../core/motorsport-api.types';
 
@@ -20,6 +21,7 @@ export class RacesPageComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly pageSize = 10;
+  readonly formatRaceDate = formatApiDate;
 
   readonly state = signal<LoadState>('loading');
   readonly errorMessage = signal<string | null>(null);

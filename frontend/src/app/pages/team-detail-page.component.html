@@ -43,7 +43,7 @@
           <table>
             <thead>
               <tr>
-                <th>#</th>
+                <th class="col-index">#</th>
                 <th>Driver</th>
                 <th>Points</th>
               </tr>
@@ -51,7 +51,7 @@
             <tbody>
               @for (driver of item.drivers; track driver.id; let i = $index) {
                 <tr>
-                  <td>{{ i + 1 }}</td>
+                  <td class="col-index">{{ i + 1 }}</td>
                   <td>
                     <a [routerLink]="['/drivers', driver.id]">{{ driver.name }}</a>
                   </td>

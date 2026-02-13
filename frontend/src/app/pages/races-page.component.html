@@ -67,23 +67,23 @@
         <table>
           <thead>
             <tr>
-              <th>#</th>
-              <th>Season</th>
+              <th class="col-index">#</th>
+              <th class="col-season">Season</th>
               <th>Round</th>
               <th>Race</th>
               <th>Country</th>
-              <th>Date</th>
+              <th class="col-date">Date</th>
             </tr>
           </thead>
           <tbody>
             @for (race of races(); track race.id; let i = $index) {
               <tr>
-                <td>{{ rowNumber(i) }}</td>
-                <td>{{ race.season_year }}</td>
+                <td class="col-index">{{ rowNumber(i) }}</td>
+                <td class="col-season">{{ race.season_year }}</td>
                 <td>R{{ race.round_number }}</td>
                 <td><a class="row-link" [routerLink]="['/races', race.id]">{{ race.name }}</a></td>
                 <td>{{ race.country }}</td>
-                <td>{{ race.race_date }}</td>
+                <td class="col-date">{{ formatRaceDate(race.race_date) }}</td>
               </tr>
             }
           </tbody>

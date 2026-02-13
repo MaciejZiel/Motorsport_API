@@ -96,7 +96,7 @@ button:disabled {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 640px;
+  min-width: 560px;
 }
 
 th,
@@ -188,5 +188,14 @@ tbody tr:last-child td {
 @media (max-width: 560px) {
   .filters-grid {
     grid-template-columns: 1fr;
+  }
+
+  table {
+    min-width: 440px;
+  }
+
+  .col-index,
+  .col-country {
+    display: none;
   }
 }
