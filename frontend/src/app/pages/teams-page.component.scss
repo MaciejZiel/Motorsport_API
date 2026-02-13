@@ -179,6 +179,22 @@ tbody tr:last-child td {
   background: #5b6b82;
 }
 
+:host-context([data-theme='dark']) .filters-grid label {
+  color: #afbdd1;
+}
+
+:host-context([data-theme='dark']) .filters-grid input {
+  background: #0e1828;
+  border-color: #3b5375;
+  color: #eaf1fd;
+  caret-color: #eaf1fd;
+  -webkit-text-fill-color: #eaf1fd;
+}
+
+:host-context([data-theme='dark']) .filters-grid input::placeholder {
+  color: #93a4bc;
+}
+
 @media (max-width: 760px) {
   .filters-grid {
     grid-template-columns: 1fr;
