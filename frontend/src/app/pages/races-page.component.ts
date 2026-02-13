@@ -1,5 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Params, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Race } from '../core/motorsport-api.types';
@@ -14,6 +16,8 @@ type LoadState = 'loading' | 'ready' | 'error';
 })
 export class RacesPageComponent {
   private readonly api = inject(MotorsportApiService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly pageSize = 10;
 
   readonly state = signal<LoadState>('loading');
@@ -28,7 +32,12 @@ export class RacesPageComponent {
   countryFilter = '';
 
   constructor() {
-    void this.reloadData();
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      this.seasonFilter = params.get('season') ?? '';
+      this.countryFilter = params.get('country') ?? '';
+      const page = this.parseOptionalPositiveInteger(params.get('page') ?? '') ?? 1;
+      void this.reloadData(page);
+    });
   }
 
   async reloadData(page: number = this.currentPage()): Promise<void> {
@@ -62,27 +71,27 @@ export class RacesPageComponent {
   }
 
   applyFilters(): void {
-    void this.reloadData(1);
+    void this.navigateWithQueryParams(1);
   }
 
   clearFilters(): void {
     this.seasonFilter = '';
     this.countryFilter = '';
-    void this.reloadData(1);
+    void this.navigateWithQueryParams(1);
   }
 
   goToNextPage(): void {
     if (!this.hasNextPage()) {
       return;
     }
-    void this.reloadData(this.currentPage() + 1);
+    void this.navigateWithQueryParams(this.currentPage() + 1);
   }
 
   goToPreviousPage(): void {
     if (!this.hasPreviousPage()) {
       return;
     }
-    void this.reloadData(this.currentPage() - 1);
+    void this.navigateWithQueryParams(this.currentPage() - 1);
   }
 
   rowNumber(index: number): number {
@@ -99,5 +108,32 @@ export class RacesPageComponent {
       return undefined;
     }
     return parsed;
+  }
+
+  private async navigateWithQueryParams(page: number): Promise<void> {
+    await this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildQueryParams(page),
+    });
+  }
+
+  private buildQueryParams(page: number): Params {
+    const queryParams: Params = {};
+    const safePage = page > 0 ? page : 1;
+    if (safePage > 1) {
+      queryParams['page'] = safePage;
+    }
+
+    const season = this.parseOptionalPositiveInteger(this.seasonFilter);
+    if (season !== undefined) {
+      queryParams['season'] = season;
+    }
+
+    const country = this.countryFilter.trim();
+    if (country) {
+      queryParams['country'] = country;
+    }
+
+    return queryParams;
   }
 }

@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Params, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Team } from '../core/motorsport-api.types';
@@ -15,6 +17,8 @@ type LoadState = 'loading' | 'ready' | 'error';
 })
 export class TeamsPageComponent {
   private readonly api = inject(MotorsportApiService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly pageSize = 10;
 
   readonly state = signal<LoadState>('loading');
@@ -29,7 +33,12 @@ export class TeamsPageComponent {
   countryFilter = '';
 
   constructor() {
-    void this.reloadData();
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      this.nameFilter = params.get('name') ?? '';
+      this.countryFilter = params.get('country') ?? '';
+      const page = this.parseOptionalPositiveInteger(params.get('page') ?? '') ?? 1;
+      void this.reloadData(page);
+    });
   }
 
   async reloadData(page: number = this.currentPage()): Promise<void> {
@@ -63,27 +72,27 @@ export class TeamsPageComponent {
   }
 
   applyFilters(): void {
-    void this.reloadData(1);
+    void this.navigateWithQueryParams(1);
   }
 
   clearFilters(): void {
     this.nameFilter = '';
     this.countryFilter = '';
-    void this.reloadData(1);
+    void this.navigateWithQueryParams(1);
   }
 
   goToNextPage(): void {
     if (!this.hasNextPage()) {
       return;
     }
-    void this.reloadData(this.currentPage() + 1);
+    void this.navigateWithQueryParams(this.currentPage() + 1);
   }
 
   goToPreviousPage(): void {
     if (!this.hasPreviousPage()) {
       return;
     }
-    void this.reloadData(this.currentPage() - 1);
+    void this.navigateWithQueryParams(this.currentPage() - 1);
   }
 
   rowNumber(index: number): number {
@@ -116,5 +125,44 @@ export class TeamsPageComponent {
       }
     }
     return 'Cannot load teams list from API.';
+  }
+
+  private parseOptionalPositiveInteger(value: string): number | undefined {
+    const normalized = value.trim();
+    if (!normalized) {
+      return undefined;
+    }
+    const parsed = Number(normalized);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private async navigateWithQueryParams(page: number): Promise<void> {
+    await this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildQueryParams(page),
+    });
+  }
+
+  private buildQueryParams(page: number): Params {
+    const queryParams: Params = {};
+    const safePage = page > 0 ? page : 1;
+    if (safePage > 1) {
+      queryParams['page'] = safePage;
+    }
+
+    const name = this.nameFilter.trim();
+    if (name) {
+      queryParams['name'] = name;
+    }
+
+    const country = this.countryFilter.trim();
+    if (country) {
+      queryParams['country'] = country;
+    }
+
+    return queryParams;
   }
 }
