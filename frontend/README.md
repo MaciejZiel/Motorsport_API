@@ -55,6 +55,12 @@ Frontend can create a user account via:
 
 `POST /api/v1/auth/register/`
 
+Frontend logout calls:
+
+`POST /api/v1/auth/logout/`
+
+to blacklist the current refresh token server-side.
+
 ## Protected routes and auth header
 
 - Routes `/drivers`, `/drivers/:id`, `/teams`, `/teams/:id`, `/races`, `/races/:id` require login.

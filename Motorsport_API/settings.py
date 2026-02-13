@@ -1,6 +1,7 @@
 """Django settings for Motorsport_API project."""
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -106,9 +107,17 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "racing.apps.RacingConfig",
 ]
+
+API_THROTTLE_ANON_RATE = os.getenv("API_THROTTLE_ANON_RATE", "120/minute")
+API_THROTTLE_USER_RATE = os.getenv("API_THROTTLE_USER_RATE", "300/minute")
+AUTH_LOGIN_THROTTLE_RATE = os.getenv("AUTH_LOGIN_THROTTLE_RATE", "20/minute")
+AUTH_REFRESH_THROTTLE_RATE = os.getenv("AUTH_REFRESH_THROTTLE_RATE", "30/minute")
+AUTH_REGISTER_THROTTLE_RATE = os.getenv("AUTH_REGISTER_THROTTLE_RATE", "10/minute")
+AUTH_LOGOUT_THROTTLE_RATE = os.getenv("AUTH_LOGOUT_THROTTLE_RATE", "30/minute")
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -116,9 +125,30 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": API_THROTTLE_ANON_RATE,
+        "user": API_THROTTLE_USER_RATE,
+        "auth_login": AUTH_LOGIN_THROTTLE_RATE,
+        "auth_refresh": AUTH_REFRESH_THROTTLE_RATE,
+        "auth_register": AUTH_REGISTER_THROTTLE_RATE,
+        "auth_logout": AUTH_LOGOUT_THROTTLE_RATE,
+    },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "EXCEPTION_HANDLER": "racing.exceptions.api_exception_handler",
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("JWT_ACCESS_TOKEN_MINUTES", 10)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("JWT_REFRESH_TOKEN_DAYS", 7)),
+    "ROTATE_REFRESH_TOKENS": env_bool("JWT_ROTATE_REFRESH_TOKENS", True),
+    "BLACKLIST_AFTER_ROTATION": env_bool("JWT_BLACKLIST_AFTER_ROTATION", True),
+    "UPDATE_LAST_LOGIN": env_bool("JWT_UPDATE_LAST_LOGIN", False),
 }
 
 SPECTACULAR_SETTINGS = {

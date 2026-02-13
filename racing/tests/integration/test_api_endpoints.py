@@ -1,16 +1,20 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
 from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from racing.models import Driver, Race, RaceResult, Season, Team
+from racing.views import LoginView, LogoutView, RegisterView, TokenRefreshScopedView
 
 
 class MotorsportApiTests(APITestCase):
     def setUp(self):
+        cache.clear()
+
         self.team_red = Team.objects.create(name="Red Apex", country="Italy")
         self.team_blue = Team.objects.create(name="Blue Arrow", country="UK")
 
@@ -171,6 +175,44 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(response.data["username"], "admin")
         self.assertTrue(response.data["is_staff"])
         self.assertTrue(response.data["is_superuser"])
+
+    def test_logout_blacklists_refresh_token(self):
+        token_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+        access = token_response.data["access"]
+        refresh = token_response.data["refresh"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        logout_response = self.client.post(reverse("api-v1:logout"), {"refresh": refresh}, format="json")
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        refresh_response = self.client.post(
+            reverse("api-v1:token_refresh"),
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(refresh_response.data["error"], "unauthorized")
+
+    def test_logout_requires_refresh_token(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.post(reverse("api-v1:logout"), {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("refresh", response.data["errors"])
+
+    def test_auth_endpoints_define_throttle_scopes(self):
+        self.assertEqual(LoginView.throttle_scope, "auth_login")
+        self.assertEqual(TokenRefreshScopedView.throttle_scope, "auth_refresh")
+        self.assertEqual(RegisterView.throttle_scope, "auth_register")
+        self.assertEqual(LogoutView.throttle_scope, "auth_logout")
 
     def test_register_creates_user_and_returns_tokens(self):
         payload = {

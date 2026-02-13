@@ -2,8 +2,12 @@ from django.db.models import Count, Max, Q, Sum
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Driver, Race, RaceResult, Season, Team
@@ -145,6 +149,8 @@ class RaceResultViewSet(viewsets.ModelViewSet):
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_register"
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -166,6 +172,20 @@ class RegisterView(APIView):
         )
 
 
+class LoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_login"
+
+
+class TokenRefreshScopedView(TokenRefreshView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_refresh"
+
+
 class AuthMeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -180,6 +200,25 @@ class AuthMeView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_logout"
+
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
+            raise ValidationError({"refresh": ["This field is required."]})
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError as exc:
+            raise ValidationError({"refresh": ["Invalid or expired refresh token."]}) from exc
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["GET"])

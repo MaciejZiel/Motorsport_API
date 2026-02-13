@@ -1,15 +1,17 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import (
     AuthMeView,
     DriverViewSet,
+    LoginView,
+    LogoutView,
     RegisterView,
     RaceResultViewSet,
     RaceViewSet,
     SeasonViewSet,
     TeamViewSet,
+    TokenRefreshScopedView,
     api_stats,
     constructor_season_standings,
     driver_season_standings,
@@ -24,9 +26,10 @@ router.register("results", RaceResultViewSet, basename="result")
 
 urlpatterns = [
     path("auth/me/", AuthMeView.as_view(), name="auth_me"),
+    path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("auth/register/", RegisterView.as_view(), name="register"),
-    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/token/", LoginView.as_view(), name="token_obtain_pair"),
+    path("auth/token/refresh/", TokenRefreshScopedView.as_view(), name="token_refresh"),
     path("stats/", api_stats, name="api-stats"),
     path("standings/drivers/", driver_season_standings, name="driver-season-standings"),
     path("standings/constructors/", constructor_season_standings, name="constructor-season-standings"),

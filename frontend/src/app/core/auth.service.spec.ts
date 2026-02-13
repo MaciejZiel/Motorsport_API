@@ -165,4 +165,32 @@ describe('AuthService', () => {
   it('returns error when refresh token is missing', async () => {
     await expect(firstValueFrom(service.refreshAccessToken())).rejects.toThrow('Missing refresh token');
   });
+
+  it('calls backend logout and clears stored tokens', async () => {
+    const accessToken = buildJwt(3600);
+    const refreshToken = buildJwt(7200);
+
+    service.login('admin', 'testpass123').subscribe();
+    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
+    loginRequest.flush({ access: accessToken, refresh: refreshToken });
+
+    const logoutPromise = firstValueFrom(service.logout());
+
+    const logoutRequest = httpMock.expectOne(`${API_BASE_URL}/auth/logout/`);
+    expect(logoutRequest.request.method).toBe('POST');
+    expect(logoutRequest.request.body).toEqual({ refresh: refreshToken });
+    logoutRequest.flush(null, { status: 204, statusText: 'No Content' });
+
+    await expect(logoutPromise).resolves.toBeUndefined();
+    expect(service.getAccessToken()).toBeNull();
+    expect(service.getRefreshToken()).toBeNull();
+  });
+
+  it('clears local auth state when logout is called without refresh token', async () => {
+    await expect(firstValueFrom(service.logout())).resolves.toBeUndefined();
+
+    httpMock.expectNone(`${API_BASE_URL}/auth/logout/`);
+    expect(service.getAccessToken()).toBeNull();
+    expect(service.getRefreshToken()).toBeNull();
+  });
 });

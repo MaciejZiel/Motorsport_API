@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { API_DOCS_URL } from './api.config';
 import { AuthService } from './core/auth.service';
 
@@ -53,7 +54,7 @@ export class App {
   }
 
   async handleLogout(): Promise<void> {
-    this.auth.logout();
+    await firstValueFrom(this.auth.logout());
     await this.router.navigateByUrl('/login');
   }
 

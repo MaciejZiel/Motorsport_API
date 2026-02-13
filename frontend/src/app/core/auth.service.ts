@@ -82,8 +82,18 @@ export class AuthService {
     return this.refreshInFlight$;
   }
 
-  logout(): void {
-    this.clearTokens();
+  logout(): Observable<void> {
+    const refresh = this.readStorage(REFRESH_TOKEN_KEY);
+    if (!refresh) {
+      this.clearTokens();
+      return of(void 0);
+    }
+
+    return this.http.post<void>(`${API_BASE_URL}/auth/logout/`, { refresh }).pipe(
+      catchError(() => of(void 0)),
+      tap(() => this.clearTokens()),
+      map(() => void 0)
+    );
   }
 
   ensureCurrentUser(): Observable<AuthUser | null> {

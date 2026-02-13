@@ -33,6 +33,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `GET /api/v1/standings/constructors/?season=2026`
 - `GET /api/v1/stats/`
 - `GET /api/v1/auth/me/`
+- `POST /api/v1/auth/logout/`
 - `POST /api/v1/auth/register/`
 - `POST /api/v1/auth/token/`
 - `POST /api/v1/auth/token/refresh/`
@@ -138,6 +139,12 @@ python manage.py check --deploy
 - Logging level is controlled by `DJANGO_LOG_LEVEL` (default: `INFO`).
 - DRF errors are normalized by `racing.exceptions.api_exception_handler`.
 - Global handlers return JSON for API routes (`handler404`, `handler500`).
+
+## Auth security hardening
+- Refresh token blacklisting is enabled (SimpleJWT blacklist app).
+- `POST /api/v1/auth/logout/` invalidates the submitted refresh token.
+- Global API throttling is enabled for anonymous and authenticated clients.
+- Auth endpoints (`login`, `refresh`, `register`, `logout`) use dedicated throttle scopes.
 
 ## Tests
 ```bash
