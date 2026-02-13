@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -56,7 +57,7 @@ export class TeamsPageComponent {
       this.teams.set([]);
       this.hasNextPage.set(false);
       this.hasPreviousPage.set(false);
-      this.errorMessage.set('Cannot load teams list from API.');
+      this.errorMessage.set(this.resolveErrorMessage(error));
       this.state.set('error');
     }
   }
@@ -87,5 +88,33 @@ export class TeamsPageComponent {
 
   rowNumber(index: number): number {
     return (this.currentPage() - 1) * this.pageSize + index + 1;
+  }
+
+  hasActiveFilters(): boolean {
+    return Boolean(this.nameFilter.trim() || this.countryFilter.trim());
+  }
+
+  emptyStateMessage(): string {
+    if (this.hasActiveFilters()) {
+      return 'No teams match current filters.';
+    }
+    return 'No teams available yet.';
+  }
+
+  private resolveErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Cannot connect to backend API.';
+      }
+
+      const payload = error.error;
+      if (payload && typeof payload === 'object' && 'detail' in payload) {
+        const detail = String((payload as { detail: unknown }).detail ?? '').trim();
+        if (detail) {
+          return detail;
+        }
+      }
+    }
+    return 'Cannot load teams list from API.';
   }
 }

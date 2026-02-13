@@ -30,41 +30,61 @@
   @if (state() === 'loading') {
     <section class="panel muted-panel">Loading teams...</section>
   } @else if (state() === 'error') {
-    <section class="panel error-panel">{{ errorMessage() }}</section>
-  } @else {
-    <section class="panel summary-panel">
-      <p>Found {{ totalCount() }} teams. Page {{ currentPage() }}.</p>
-      <div class="pagination-actions">
-        <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
-          Previous
-        </button>
-        <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
-          Next
-        </button>
+    <section class="panel error-panel">
+      <p>{{ errorMessage() }}</p>
+      <div class="message-actions">
+        <button type="button" (click)="reloadData()">Retry</button>
+        @if (hasActiveFilters()) {
+          <button type="button" class="secondary-btn" (click)="clearFilters()">Clear filters</button>
+        }
       </div>
     </section>
-
-    <section class="panel table-panel">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Team</th>
-            <th>Country</th>
-            <th>Drivers</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (team of teams(); track team.id; let i = $index) {
-            <tr>
-              <td>{{ rowNumber(i) }}</td>
-              <td>{{ team.name }}</td>
-              <td>{{ team.country }}</td>
-              <td>{{ team.driver_count ?? '-' }}</td>
-            </tr>
+  } @else {
+    @if (teams().length === 0) {
+      <section class="panel empty-panel">
+        <p>{{ emptyStateMessage() }}</p>
+        <div class="message-actions">
+          <button type="button" (click)="reloadData()">Retry</button>
+          @if (hasActiveFilters()) {
+            <button type="button" class="secondary-btn" (click)="clearFilters()">Clear filters</button>
           }
-        </tbody>
-      </table>
-    </section>
+        </div>
+      </section>
+    } @else {
+      <section class="panel summary-panel">
+        <p>Found {{ totalCount() }} teams. Page {{ currentPage() }}.</p>
+        <div class="pagination-actions">
+          <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
+            Previous
+          </button>
+          <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
+            Next
+          </button>
+        </div>
+      </section>
+
+      <section class="panel table-panel">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Team</th>
+              <th>Country</th>
+              <th>Drivers</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (team of teams(); track team.id; let i = $index) {
+              <tr>
+                <td>{{ rowNumber(i) }}</td>
+                <td>{{ team.name }}</td>
+                <td>{{ team.country }}</td>
+                <td>{{ team.driver_count ?? '-' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
   }
 </div>
