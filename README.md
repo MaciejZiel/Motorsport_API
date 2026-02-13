@@ -82,8 +82,12 @@ docker compose up --build
 # docker-compose up --build
 ```
 
-Backend will be available on `http://127.0.0.1:8000` and connected to PostgreSQL in Compose.
-Container runtime uses `gunicorn` (`Motorsport_API.wsgi:application`).
+Compose starts three services: `db` (PostgreSQL), `api` (Django + gunicorn), and `frontend` (Angular dev server).
+
+- Frontend: `http://127.0.0.1:4200`
+- Backend API: `http://127.0.0.1:8000`
+
+Frontend requests `/api/*` are proxied to the backend service in Docker.
 
 ## Production security baseline
 Set these in production:
@@ -127,4 +131,5 @@ npm --prefix frontend install
 npm --prefix frontend run start
 ```
 
-By default it uses backend API on `http://127.0.0.1:8000/api/v1`.
+The frontend uses relative API paths (`/api/v1`) and `ng serve` proxy config.
+Default local proxy target is `http://127.0.0.1:8000`.

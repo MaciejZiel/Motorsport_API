@@ -13,13 +13,22 @@ npm --prefix frontend run start
 
 App URL: `http://localhost:4200`
 
+For Docker compose frontend service:
+
+```bash
+npm --prefix frontend run start:docker
+```
+
 ## Backend dependency
 
-This frontend expects backend API at:
+This frontend uses relative API paths:
 
-`http://127.0.0.1:8000/api/v1`
+`/api/v1`
 
-Configured in `src/app/api.config.ts`.
+Configured in `src/app/api.config.ts` and routed through Angular proxy config:
+
+- Local dev (`npm run start`): proxy target `http://127.0.0.1:8000`
+- Docker dev (`npm run start:docker`): proxy target `http://api:8000`
 
 ## Current routes
 
