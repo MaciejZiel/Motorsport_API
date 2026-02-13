@@ -117,6 +117,16 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
+.row-link {
+  color: #234d81;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.row-link:hover {
+  text-decoration: underline;
+}
+
 .filters-panel {
   background: #fff6e8;
 }

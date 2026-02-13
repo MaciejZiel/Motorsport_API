@@ -125,4 +125,55 @@ describe('MotorsportApiService', () => {
 
     request.flush({ count: 2, next: null, previous: null, results: [] });
   });
+
+  it('calls driver detail endpoint', () => {
+    service.getDriverById(12).subscribe((response) => {
+      expect(response.id).toBe(12);
+      expect(response.name).toBe('Max Fast');
+    });
+
+    const request = httpMock.expectOne(`${API_BASE_URL}/drivers/12/`);
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      id: 12,
+      name: 'Max Fast',
+      points: 410,
+      team: { id: 1, name: 'Red Apex', country: 'Italy' },
+    });
+  });
+
+  it('calls team detail endpoint', () => {
+    service.getTeamById(3).subscribe((response) => {
+      expect(response.id).toBe(3);
+      expect(response.drivers).toHaveLength(1);
+    });
+
+    const request = httpMock.expectOne(`${API_BASE_URL}/teams/3/`);
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      id: 3,
+      name: 'Blue Arrow',
+      country: 'UK',
+      driver_count: 1,
+      drivers: [{ id: 7, name: 'Owen Pace', points: 250 }],
+    });
+  });
+
+  it('calls race detail endpoint', () => {
+    service.getRaceById(9).subscribe((response) => {
+      expect(response.id).toBe(9);
+      expect(response.round_number).toBe(2);
+    });
+
+    const request = httpMock.expectOne(`${API_BASE_URL}/races/9/`);
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      id: 9,
+      name: 'Spanish Grand Prix',
+      country: 'Spain',
+      round_number: 2,
+      race_date: '2026-04-19',
+      season_year: 2026,
+    });
+  });
 });

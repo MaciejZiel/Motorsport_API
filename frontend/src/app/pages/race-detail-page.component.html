@@ -1,0 +1,51 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Race</p>
+      <h1>Race Details</h1>
+      <p>Read-only data from <code>/api/v1/races/:id/</code>.</p>
+    </div>
+    <a class="back-link" routerLink="/races">Back to races</a>
+  </header>
+
+  @if (state() === 'loading') {
+    <section class="panel muted-panel">Loading race details...</section>
+  } @else if (state() === 'error') {
+    <section class="panel error-panel">
+      <p>{{ errorMessage() }}</p>
+      <div class="message-actions">
+        <button type="button" (click)="retry()">Retry</button>
+        <a class="secondary-link" routerLink="/races">Back to list</a>
+      </div>
+    </section>
+  } @else {
+    @if (race(); as item) {
+      <section class="panel hero-panel">
+        <p class="label">Race name</p>
+        <h2>{{ item.name }}</h2>
+      </section>
+
+      <section class="detail-grid">
+        <article class="panel detail-card">
+          <p class="label">Season</p>
+          <p class="value">{{ item.season_year }}</p>
+        </article>
+
+        <article class="panel detail-card">
+          <p class="label">Round</p>
+          <p class="value">R{{ item.round_number }}</p>
+        </article>
+
+        <article class="panel detail-card">
+          <p class="label">Country</p>
+          <p class="value">{{ item.country }}</p>
+        </article>
+
+        <article class="panel detail-card">
+          <p class="label">Race date</p>
+          <p class="value">{{ item.race_date }}</p>
+        </article>
+      </section>
+    }
+  }
+</div>

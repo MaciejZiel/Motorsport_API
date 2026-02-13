@@ -17,6 +17,17 @@ export interface Team extends TeamSlim {
   driver_count?: number;
 }
 
+export interface TeamDriver {
+  id: number;
+  name: string;
+  points: number;
+}
+
+export interface TeamDetail extends Team {
+  driver_count: number;
+  drivers: TeamDriver[];
+}
+
 export interface Driver {
   id: number;
   name: string;

@@ -100,8 +100,8 @@
             @for (driver of drivers(); track driver.id; let i = $index) {
               <tr>
                 <td>{{ rowNumber(i) }}</td>
-                <td>{{ driver.name }}</td>
-                <td>{{ driver.team.name }}</td>
+                <td><a class="row-link" [routerLink]="['/drivers', driver.id]">{{ driver.name }}</a></td>
+                <td><a class="row-link" [routerLink]="['/teams', driver.team.id]">{{ driver.team.name }}</a></td>
                 <td>{{ driver.team.country }}</td>
                 <td>{{ driver.points }}</td>
               </tr>

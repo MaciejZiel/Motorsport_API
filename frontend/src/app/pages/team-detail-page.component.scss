@@ -1,0 +1,165 @@
+.page-shell {
+  padding: clamp(0.8rem, 2vw, 1.8rem);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+
+.kicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.74rem;
+  color: #525a65;
+}
+
+h1 {
+  margin: 0.2rem 0;
+  font-family: Impact, 'Arial Black', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.page-header p {
+  margin: 0;
+  color: #505763;
+}
+
+.back-link {
+  text-decoration: none;
+  border: 1px solid #d6deea;
+  background: #f6f9ff;
+  color: #1d3550;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.panel {
+  border: 1px solid #e6d8c2;
+  border-radius: 14px;
+  background: #fff9f0;
+  padding: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.muted-panel {
+  color: #4e5561;
+}
+
+.error-panel {
+  border-color: #f0a293;
+  background: #ffe4de;
+  color: #6c2115;
+}
+
+.error-panel p {
+  margin: 0;
+}
+
+.message-actions {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+button,
+.secondary-link {
+  border: 0;
+  border-radius: 999px;
+  background: #12253f;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.6rem 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.secondary-link {
+  background: #5b6b82;
+}
+
+.hero-panel h2 {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.detail-card {
+  margin: 0;
+}
+
+.label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  color: #555f6d;
+}
+
+.value {
+  margin: 0.3rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #162238;
+}
+
+.table-panel h3 {
+  margin: 0 0 0.7rem;
+}
+
+.table-panel {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 460px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.48rem 0.28rem;
+  border-bottom: 1px solid #efe3d2;
+}
+
+th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #575d67;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+a {
+  color: #234d81;
+}
+
+.muted-copy {
+  margin: 0;
+  color: #4e5561;
+}
+
+@media (max-width: 760px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

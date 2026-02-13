@@ -1,0 +1,48 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Driver</p>
+      <h1>Driver Profile</h1>
+      <p>Read-only data from <code>/api/v1/drivers/:id/</code>.</p>
+    </div>
+    <a class="back-link" routerLink="/drivers">Back to drivers</a>
+  </header>
+
+  @if (state() === 'loading') {
+    <section class="panel muted-panel">Loading driver details...</section>
+  } @else if (state() === 'error') {
+    <section class="panel error-panel">
+      <p>{{ errorMessage() }}</p>
+      <div class="message-actions">
+        <button type="button" (click)="retry()">Retry</button>
+        <a class="secondary-link" routerLink="/drivers">Back to list</a>
+      </div>
+    </section>
+  } @else {
+    @if (driver(); as item) {
+      <section class="panel hero-panel">
+        <p class="label">Driver name</p>
+        <h2>{{ item.name }}</h2>
+      </section>
+
+      <section class="detail-grid">
+        <article class="panel detail-card">
+          <p class="label">Points</p>
+          <p class="value">{{ item.points }}</p>
+        </article>
+
+        <article class="panel detail-card">
+          <p class="label">Team</p>
+          <p class="value">
+            <a [routerLink]="['/teams', item.team.id]">{{ item.team.name }}</a>
+          </p>
+        </article>
+
+        <article class="panel detail-card">
+          <p class="label">Team country</p>
+          <p class="value">{{ item.team.country }}</p>
+        </article>
+      </section>
+    }
+  }
+</div>

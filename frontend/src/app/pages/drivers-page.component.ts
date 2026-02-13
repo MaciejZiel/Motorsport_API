@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Params, Router } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Driver } from '../core/motorsport-api.types';
@@ -11,7 +11,7 @@ type LoadState = 'loading' | 'ready' | 'error';
 
 @Component({
   selector: 'app-drivers-page',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './drivers-page.component.html',
   styleUrl: './drivers-page.component.scss',
 })

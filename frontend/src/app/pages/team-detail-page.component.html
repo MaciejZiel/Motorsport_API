@@ -1,0 +1,69 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Team</p>
+      <h1>Team Profile</h1>
+      <p>Read-only data from <code>/api/v1/teams/:id/</code>.</p>
+    </div>
+    <a class="back-link" routerLink="/teams">Back to teams</a>
+  </header>
+
+  @if (state() === 'loading') {
+    <section class="panel muted-panel">Loading team details...</section>
+  } @else if (state() === 'error') {
+    <section class="panel error-panel">
+      <p>{{ errorMessage() }}</p>
+      <div class="message-actions">
+        <button type="button" (click)="retry()">Retry</button>
+        <a class="secondary-link" routerLink="/teams">Back to list</a>
+      </div>
+    </section>
+  } @else {
+    @if (team(); as item) {
+      <section class="panel hero-panel">
+        <p class="label">Team name</p>
+        <h2>{{ item.name }}</h2>
+      </section>
+
+      <section class="detail-grid">
+        <article class="panel detail-card">
+          <p class="label">Country</p>
+          <p class="value">{{ item.country }}</p>
+        </article>
+
+        <article class="panel detail-card">
+          <p class="label">Drivers</p>
+          <p class="value">{{ item.driver_count }}</p>
+        </article>
+      </section>
+
+      <section class="panel table-panel">
+        <h3>Team drivers</h3>
+        @if (item.drivers.length > 0) {
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Driver</th>
+                <th>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (driver of item.drivers; track driver.id; let i = $index) {
+                <tr>
+                  <td>{{ i + 1 }}</td>
+                  <td>
+                    <a [routerLink]="['/drivers', driver.id]">{{ driver.name }}</a>
+                  </td>
+                  <td>{{ driver.points }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="muted-copy">No drivers assigned to this team yet.</p>
+        }
+      </section>
+    }
+  }
+</div>

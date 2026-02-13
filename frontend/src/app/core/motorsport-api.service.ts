@@ -11,6 +11,7 @@ import {
   Race,
   SeasonStandingsResponse,
   Team,
+  TeamDetail,
 } from './motorsport-api.types';
 
 export interface DriverListFilters {
@@ -104,6 +105,18 @@ export class MotorsportApiService {
     }
 
     return this.http.get<PaginatedResponse<Race>>(`${API_BASE_URL}/races/`, { params });
+  }
+
+  getDriverById(id: number): Observable<Driver> {
+    return this.http.get<Driver>(`${API_BASE_URL}/drivers/${id}/`);
+  }
+
+  getTeamById(id: number): Observable<TeamDetail> {
+    return this.http.get<TeamDetail>(`${API_BASE_URL}/teams/${id}/`);
+  }
+
+  getRaceById(id: number): Observable<Race> {
+    return this.http.get<Race>(`${API_BASE_URL}/races/${id}/`);
   }
 
   private buildSeasonParams(season?: number): HttpParams {
