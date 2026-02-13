@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
@@ -58,7 +59,7 @@ export class DriversPageComponent {
       this.drivers.set([]);
       this.hasNextPage.set(false);
       this.hasPreviousPage.set(false);
-      this.errorMessage.set('Cannot load drivers list from API.');
+      this.errorMessage.set(this.resolveErrorMessage(error));
       this.state.set('error');
     }
   }
@@ -90,6 +91,38 @@ export class DriversPageComponent {
 
   rowNumber(index: number): number {
     return (this.currentPage() - 1) * this.pageSize + index + 1;
+  }
+
+  hasActiveFilters(): boolean {
+    return Boolean(
+      this.teamIdFilter.trim() ||
+        this.countryFilter.trim() ||
+        this.minPointsFilter.trim()
+    );
+  }
+
+  emptyStateMessage(): string {
+    if (this.hasActiveFilters()) {
+      return 'No drivers match current filters.';
+    }
+    return 'No drivers available yet.';
+  }
+
+  private resolveErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Cannot connect to backend API.';
+      }
+
+      const payload = error.error;
+      if (payload && typeof payload === 'object' && 'detail' in payload) {
+        const detail = String((payload as { detail: unknown }).detail ?? '').trim();
+        if (detail) {
+          return detail;
+        }
+      }
+    }
+    return 'Cannot load drivers list from API.';
   }
 
   private parseOptionalPositiveInteger(value: string, allowZero = false): number | undefined {

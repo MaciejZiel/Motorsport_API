@@ -63,6 +63,19 @@ button:disabled {
   color: #6c2115;
 }
 
+.error-panel p {
+  margin: 0;
+}
+
+.empty-panel {
+  border-style: dashed;
+  color: #474e59;
+}
+
+.empty-panel p {
+  margin: 0;
+}
+
 .summary-panel {
   display: flex;
   align-items: center;
@@ -143,6 +156,17 @@ tbody tr:last-child td {
 .pagination-actions {
   display: flex;
   gap: 0.45rem;
+}
+
+.message-actions {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.secondary-btn {
+  background: #5b6b82;
 }
 
 @media (max-width: 920px) {
