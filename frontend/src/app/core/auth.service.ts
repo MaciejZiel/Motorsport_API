@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, map, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../api.config';
 import { TokenPair } from './auth.types';
 
@@ -22,8 +22,27 @@ export class AuthService {
     );
   }
 
+  refreshAccessToken(): Observable<string> {
+    const refresh = this.refreshToken();
+    if (!refresh) {
+      return throwError(() => new Error('Missing refresh token'));
+    }
+
+    return this.http
+      .post<{ access: string; refresh?: string }>(`${API_BASE_URL}/auth/token/refresh/`, { refresh })
+      .pipe(
+        tap((tokens) =>
+          this.setTokens({
+            access: tokens.access,
+            refresh: tokens.refresh ?? refresh,
+          })
+        ),
+        map((tokens) => tokens.access)
+      );
+  }
+
   logout(): void {
-    this.setTokens({ access: '', refresh: '' });
+    this.clearTokens();
   }
 
   getAccessToken(): string | null {
@@ -32,6 +51,10 @@ export class AuthService {
 
   getRefreshToken(): string | null {
     return this.refreshToken();
+  }
+
+  clearTokens(): void {
+    this.setTokens({ access: '', refresh: '' });
   }
 
   private setTokens(tokens: TokenPair): void {
