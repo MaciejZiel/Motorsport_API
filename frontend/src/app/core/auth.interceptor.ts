@@ -33,10 +33,6 @@ export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
       }
 
       return auth.refreshAccessToken().pipe(
-        catchError((refreshError) => {
-          auth.clearTokens();
-          return throwError(() => refreshError);
-        }),
         switchMap((newAccessToken) =>
           next(
             request.clone({

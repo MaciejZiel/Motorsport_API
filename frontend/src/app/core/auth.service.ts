@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, map, tap, throwError } from 'rxjs';
+import { Observable, catchError, finalize, map, shareReplay, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../api.config';
 import { TokenPair } from './auth.types';
 
@@ -10,11 +10,14 @@ const REFRESH_TOKEN_KEY = 'motorsport_refresh_token';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private refreshInFlight$: Observable<string> | null = null;
 
   private readonly accessToken = signal<string | null>(this.readStorage(ACCESS_TOKEN_KEY));
   private readonly refreshToken = signal<string | null>(this.readStorage(REFRESH_TOKEN_KEY));
 
-  readonly isAuthenticated = computed(() => Boolean(this.accessToken()));
+  readonly isAuthenticated = computed(
+    () => this.isTokenUsable(this.accessToken()) || this.isTokenUsable(this.refreshToken())
+  );
 
   login(username: string, password: string): Observable<TokenPair> {
     return this.http.post<TokenPair>(`${API_BASE_URL}/auth/token/`, { username, password }).pipe(
@@ -23,12 +26,16 @@ export class AuthService {
   }
 
   refreshAccessToken(): Observable<string> {
-    const refresh = this.refreshToken();
+    const refresh = this.getRefreshToken();
     if (!refresh) {
       return throwError(() => new Error('Missing refresh token'));
     }
 
-    return this.http
+    if (this.refreshInFlight$) {
+      return this.refreshInFlight$;
+    }
+
+    this.refreshInFlight$ = this.http
       .post<{ access: string; refresh?: string }>(`${API_BASE_URL}/auth/token/refresh/`, { refresh })
       .pipe(
         tap((tokens) =>
@@ -37,8 +44,18 @@ export class AuthService {
             refresh: tokens.refresh ?? refresh,
           })
         ),
-        map((tokens) => tokens.access)
+        map((tokens) => tokens.access),
+        catchError((error) => {
+          this.clearTokens();
+          return throwError(() => error);
+        }),
+        finalize(() => {
+          this.refreshInFlight$ = null;
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
       );
+
+    return this.refreshInFlight$;
   }
 
   logout(): void {
@@ -46,11 +63,19 @@ export class AuthService {
   }
 
   getAccessToken(): string | null {
-    return this.accessToken();
+    return this.readValidToken(
+      this.accessToken(),
+      ACCESS_TOKEN_KEY,
+      (value) => this.accessToken.set(value)
+    );
   }
 
   getRefreshToken(): string | null {
-    return this.refreshToken();
+    return this.readValidToken(
+      this.refreshToken(),
+      REFRESH_TOKEN_KEY,
+      (value) => this.refreshToken.set(value)
+    );
   }
 
   clearTokens(): void {
@@ -67,20 +92,85 @@ export class AuthService {
   }
 
   private readStorage(key: string): string | null {
-    if (typeof window === 'undefined') {
+    const storage = this.getStorage();
+    if (!storage) {
       return null;
     }
-    return window.localStorage.getItem(key);
+    return storage.getItem(key);
   }
 
   private writeStorage(key: string, value: string | null): void {
-    if (typeof window === 'undefined') {
+    const storage = this.getStorage();
+    if (!storage) {
       return;
     }
     if (value) {
-      window.localStorage.setItem(key, value);
+      storage.setItem(key, value);
       return;
     }
-    window.localStorage.removeItem(key);
+    storage.removeItem(key);
+  }
+
+  private getStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return window.sessionStorage;
+  }
+
+  private readValidToken(
+    token: string | null,
+    key: string,
+    updateToken: (value: string | null) => void
+  ): string | null {
+    if (!token) {
+      return null;
+    }
+
+    if (!this.isTokenUsable(token)) {
+      updateToken(null);
+      this.writeStorage(key, null);
+      return null;
+    }
+
+    return token;
+  }
+
+  private isTokenUsable(token: string | null): boolean {
+    if (!token) {
+      return false;
+    }
+    return !this.isTokenExpired(token);
+  }
+
+  private isTokenExpired(token: string): boolean {
+    const payload = this.parseTokenPayload(token);
+    const expiresAt = payload?.['exp'];
+    if (typeof expiresAt !== 'number') {
+      return true;
+    }
+
+    const nowUnixSeconds = Math.floor(Date.now() / 1000);
+    return expiresAt <= nowUnixSeconds + 5;
+  }
+
+  private parseTokenPayload(token: string): Record<string, unknown> | null {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    try {
+      const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+      const decoded = atob(padded);
+      const payload = JSON.parse(decoded);
+      if (!payload || typeof payload !== 'object') {
+        return null;
+      }
+      return payload as Record<string, unknown>;
+    } catch {
+      return null;
+    }
   }
 }
