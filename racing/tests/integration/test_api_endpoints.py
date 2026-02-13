@@ -2,10 +2,11 @@ from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Driver, Race, RaceResult, Season, Team
+from racing.models import Driver, Race, RaceResult, Season, Team
 
 
 class MotorsportApiTests(APITestCase):
@@ -57,6 +58,10 @@ class MotorsportApiTests(APITestCase):
         response = self.client.get(reverse("api-v1:driver-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 3)
+
+    def test_swagger_alias_is_available(self):
+        response = self.client.get(reverse("schema-swagger-ui"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_standings_are_sorted_descending(self):
         response = self.client.get(reverse("api-v1:driver-standings"))
@@ -199,6 +204,9 @@ class MotorsportApiTests(APITestCase):
         }
         response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertEqual(response.data["status_code"], status.HTTP_400_BAD_REQUEST)
+        self.assertIn("errors", response.data)
 
     def test_standings_without_season_use_latest(self):
         season_2025 = Season.objects.create(year=2025, name="World Championship 2025")
@@ -214,3 +222,10 @@ class MotorsportApiTests(APITestCase):
         response = self.client.get(reverse("api-v1:driver-season-standings"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["season"], 2026)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+    def test_api_404_returns_structured_json(self):
+        response = self.client.get("/api/not-existing-endpoint/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["error"], "not_found")
+        self.assertEqual(response.json()["status_code"], status.HTTP_404_NOT_FOUND)

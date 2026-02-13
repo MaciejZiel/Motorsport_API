@@ -6,9 +6,11 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - Relational modeling across `Team`, `Driver`, `Season`, `Race`, `RaceResult`
 - Versioned API (`/api/v1/`) with standings and analytics endpoints
 - JWT auth + admin-only write access
-- Filtering, pagination, OpenAPI docs
+- Filtering, pagination, OpenAPI docs (Swagger/ReDoc)
+- Structured API error handling and application logging
 - PostgreSQL-ready config with SQLite fallback
-- Automated API tests
+- Unit + integration automated tests
+- Dockerized local setup (`docker compose up --build`)
 
 ## Tech stack
 - Python 3.12+
@@ -17,6 +19,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - djangorestframework-simplejwt
 - SQLite (default dev)
 - PostgreSQL (production-like setup)
+- Docker + Docker Compose
 
 ## Main endpoints
 - `GET/POST /api/v1/teams/`
@@ -30,15 +33,16 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `POST /api/v1/auth/token/`
 - `POST /api/v1/auth/token/refresh/`
 
-Docs:
-- Swagger: `/api/docs/`
-- ReDoc: `/api/redoc/`
+## API docs
 - OpenAPI schema: `/api/schema/`
+- Swagger UI: `/api/schema/swagger-ui/` (alias: `/api/docs/`)
+- ReDoc: `/api/schema/redoc/` (alias: `/api/redoc/`)
 
 ## Quick start (SQLite)
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate  # Windows PowerShell/CMD
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
@@ -46,20 +50,20 @@ python manage.py seed_motorsport
 python manage.py runserver
 ```
 
-## PostgreSQL mode
+## PostgreSQL mode (local)
 Set env vars:
 ```bash
-set DJANGO_DB_ENGINE=postgresql
-set POSTGRES_DB=motorsport_api
-set POSTGRES_USER=postgres
-set POSTGRES_PASSWORD=postgres
-set POSTGRES_HOST=localhost
-set POSTGRES_PORT=5432
+export DJANGO_DB_ENGINE=postgresql
+export POSTGRES_DB=motorsport_api
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=postgres
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5432
 ```
 
 or:
 ```bash
-set DATABASE_URL=postgresql://postgres:postgres@localhost:5432/motorsport_api
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/motorsport_api
 ```
 
 Then:
@@ -69,9 +73,25 @@ python manage.py seed_motorsport
 python manage.py runserver
 ```
 
+## Docker
+```bash
+docker compose up --build
+# fallback for older installations:
+# docker-compose up --build
+```
+
+Backend will be available on `http://127.0.0.1:8000` and connected to PostgreSQL in Compose.
+
+## Logging and errors
+- Logging level is controlled by `DJANGO_LOG_LEVEL` (default: `INFO`).
+- DRF errors are normalized by `racing.exceptions.api_exception_handler`.
+- Global handlers return JSON for API routes (`handler404`, `handler500`).
+
 ## Tests
 ```bash
 python manage.py test
+python manage.py test racing.tests.unit
+python manage.py test racing.tests.integration
 ```
 
 ## Frontend (Angular)
