@@ -26,6 +26,12 @@ export interface TeamListFilters {
   country?: string;
 }
 
+export interface RaceListFilters {
+  page?: number;
+  season?: number;
+  country?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MotorsportApiService {
   private readonly http = inject(HttpClient);
@@ -84,8 +90,20 @@ export class MotorsportApiService {
     return this.http.get<PaginatedResponse<Team>>(`${API_BASE_URL}/teams/`, { params });
   }
 
-  getRaces(): Observable<PaginatedResponse<Race>> {
-    return this.http.get<PaginatedResponse<Race>>(`${API_BASE_URL}/races/`);
+  getRaces(filters?: RaceListFilters): Observable<PaginatedResponse<Race>> {
+    let params = new HttpParams();
+
+    if (filters?.page && filters.page > 0) {
+      params = params.set('page', filters.page);
+    }
+    if (filters?.season && filters.season > 0) {
+      params = params.set('season', filters.season);
+    }
+    if (filters?.country?.trim()) {
+      params = params.set('country', filters.country.trim());
+    }
+
+    return this.http.get<PaginatedResponse<Race>>(`${API_BASE_URL}/races/`, { params });
   }
 
   private buildSeasonParams(season?: number): HttpParams {

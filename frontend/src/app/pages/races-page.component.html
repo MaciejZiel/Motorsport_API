@@ -8,12 +8,41 @@
     <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
   </header>
 
+  <section class="panel filters-panel">
+    <form class="filters-grid" (ngSubmit)="applyFilters()">
+      <label>
+        Season (year or id)
+        <input type="number" min="1" [(ngModel)]="seasonFilter" name="seasonFilter" placeholder="e.g. 2026" />
+      </label>
+
+      <label>
+        Country
+        <input type="text" [(ngModel)]="countryFilter" name="countryFilter" placeholder="e.g. Italy" />
+      </label>
+
+      <div class="filters-actions">
+        <button type="submit" [disabled]="state() === 'loading'">Apply filters</button>
+        <button type="button" (click)="clearFilters()" [disabled]="state() === 'loading'">Clear</button>
+      </div>
+    </form>
+  </section>
+
   @if (state() === 'loading') {
     <section class="panel muted-panel">Loading races...</section>
   } @else if (state() === 'error') {
     <section class="panel error-panel">{{ errorMessage() }}</section>
   } @else {
-    <section class="panel summary-panel">Found {{ totalCount() }} races.</section>
+    <section class="panel summary-panel">
+      <p>Found {{ totalCount() }} races. Page {{ currentPage() }}.</p>
+      <div class="pagination-actions">
+        <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
+          Previous
+        </button>
+        <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
+          Next
+        </button>
+      </div>
+    </section>
 
     <section class="panel table-panel">
       <table>
@@ -30,7 +59,7 @@
         <tbody>
           @for (race of races(); track race.id; let i = $index) {
             <tr>
-              <td>{{ i + 1 }}</td>
+              <td>{{ rowNumber(i) }}</td>
               <td>{{ race.season_year }}</td>
               <td>R{{ race.round_number }}</td>
               <td>{{ race.name }}</td>
