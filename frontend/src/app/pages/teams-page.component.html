@@ -8,12 +8,41 @@
     <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
   </header>
 
+  <section class="panel filters-panel">
+    <form class="filters-grid" (ngSubmit)="applyFilters()">
+      <label>
+        Team name
+        <input type="text" [(ngModel)]="nameFilter" name="nameFilter" placeholder="e.g. Red" />
+      </label>
+
+      <label>
+        Country
+        <input type="text" [(ngModel)]="countryFilter" name="countryFilter" placeholder="e.g. Italy" />
+      </label>
+
+      <div class="filters-actions">
+        <button type="submit" [disabled]="state() === 'loading'">Apply filters</button>
+        <button type="button" (click)="clearFilters()" [disabled]="state() === 'loading'">Clear</button>
+      </div>
+    </form>
+  </section>
+
   @if (state() === 'loading') {
     <section class="panel muted-panel">Loading teams...</section>
   } @else if (state() === 'error') {
     <section class="panel error-panel">{{ errorMessage() }}</section>
   } @else {
-    <section class="panel summary-panel">Found {{ totalCount() }} teams.</section>
+    <section class="panel summary-panel">
+      <p>Found {{ totalCount() }} teams. Page {{ currentPage() }}.</p>
+      <div class="pagination-actions">
+        <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
+          Previous
+        </button>
+        <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
+          Next
+        </button>
+      </div>
+    </section>
 
     <section class="panel table-panel">
       <table>
@@ -28,7 +57,7 @@
         <tbody>
           @for (team of teams(); track team.id; let i = $index) {
             <tr>
-              <td>{{ i + 1 }}</td>
+              <td>{{ rowNumber(i) }}</td>
               <td>{{ team.name }}</td>
               <td>{{ team.country }}</td>
               <td>{{ team.driver_count ?? '-' }}</td>

@@ -64,6 +64,15 @@ button:disabled {
 }
 
 .summary-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.summary-panel p {
+  margin: 0;
   font-weight: 700;
 }
 
@@ -93,4 +102,51 @@ th {
 
 tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.filters-panel {
+  background: #fff6e8;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.filters-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #505763;
+}
+
+.filters-grid input {
+  border: 1px solid #d9c8ad;
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+  font-size: 0.9rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #1e2228;
+}
+
+.filters-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.pagination-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+@media (max-width: 760px) {
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
 }

@@ -20,6 +20,12 @@ export interface DriverListFilters {
   minPoints?: number;
 }
 
+export interface TeamListFilters {
+  page?: number;
+  name?: string;
+  country?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MotorsportApiService {
   private readonly http = inject(HttpClient);
@@ -62,8 +68,20 @@ export class MotorsportApiService {
     return this.http.get<PaginatedResponse<Driver>>(`${API_BASE_URL}/drivers/`, { params });
   }
 
-  getTeams(): Observable<PaginatedResponse<Team>> {
-    return this.http.get<PaginatedResponse<Team>>(`${API_BASE_URL}/teams/`);
+  getTeams(filters?: TeamListFilters): Observable<PaginatedResponse<Team>> {
+    let params = new HttpParams();
+
+    if (filters?.page && filters.page > 0) {
+      params = params.set('page', filters.page);
+    }
+    if (filters?.name?.trim()) {
+      params = params.set('name', filters.name.trim());
+    }
+    if (filters?.country?.trim()) {
+      params = params.set('country', filters.country.trim());
+    }
+
+    return this.http.get<PaginatedResponse<Team>>(`${API_BASE_URL}/teams/`, { params });
   }
 
   getRaces(): Observable<PaginatedResponse<Race>> {
