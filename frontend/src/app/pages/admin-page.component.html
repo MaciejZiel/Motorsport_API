@@ -3,24 +3,31 @@
     <div>
       <p class="kicker">Admin</p>
       <h1>Admin Workspace</h1>
-      <p>Staff-only area for editing platform data.</p>
+      <p>Staff-only tools for managing platform data.</p>
     </div>
+    <a class="admin-home-link" href="/admin/" target="_blank" rel="noopener">Open Django admin</a>
   </header>
 
   <section class="panel intro-panel">
     <p>
-      Use the Django admin modules below to manage records safely. API write permissions remain enforced on the
+      Use these shortcuts to open Django admin modules in a new tab. API write permissions remain enforced on the
       backend.
     </p>
+  </section>
+
+  <section class="panel summary-panel">
+    <p>{{ links.length }} modules available.</p>
   </section>
 
   <section class="panel links-panel">
     <div class="links-grid">
       @for (item of links; track item.href) {
         <a class="admin-link-card" [href]="item.href" target="_blank" rel="noopener">
-          <h2>{{ item.label }}</h2>
+          <div class="card-top">
+            <h2>{{ item.label }}</h2>
+            <span class="card-action">Open</span>
+          </div>
           <p>{{ item.description }}</p>
-          <span>Open admin module</span>
         </a>
       }
     </div>
