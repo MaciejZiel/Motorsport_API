@@ -25,6 +25,16 @@ export class AuthService {
     );
   }
 
+  register(username: string, password: string, passwordConfirm: string): Observable<TokenPair> {
+    return this.http
+      .post<TokenPair>(`${API_BASE_URL}/auth/register/`, {
+        username,
+        password,
+        password_confirm: passwordConfirm,
+      })
+      .pipe(tap((tokens) => this.setTokens(tokens)));
+  }
+
   refreshAccessToken(): Observable<string> {
     const refresh = this.getRefreshToken();
     if (!refresh) {

@@ -64,7 +64,18 @@ describe('authTokenInterceptor', () => {
     const accessToken = buildJwt(3600);
     window.sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
 
+    http
+      .post(`${API_BASE_URL}/auth/register/`, {
+        username: 'newfan',
+        password: 'StrongPass123!',
+        password_confirm: 'StrongPass123!',
+      })
+      .subscribe();
     http.post(`${API_BASE_URL}/auth/token/`, { username: 'admin', password: 'secret' }).subscribe();
+
+    const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
+    expect(registerRequest.request.headers.has('Authorization')).toBe(false);
+    registerRequest.flush({ access: buildJwt(3600), refresh: buildJwt(7200) });
 
     const request = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
     expect(request.request.headers.has('Authorization')).toBe(false);

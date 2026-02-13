@@ -158,6 +158,48 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
         self.assertIn("access", refresh_response.data)
 
+    def test_register_creates_user_and_returns_tokens(self):
+        payload = {
+            "username": "newfan",
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass123!",
+        }
+        response = self.client.post(reverse("api-v1:register"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertEqual(response.data["user"]["username"], "newfan")
+        self.assertFalse(response.data["user"]["is_staff"])
+        User = get_user_model()
+        self.assertTrue(User.objects.filter(username="newfan").exists())
+
+    def test_register_rejects_duplicate_username(self):
+        payload = {
+            "username": "user",
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass123!",
+        }
+        response = self.client.post(reverse("api-v1:register"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("username", response.data["errors"])
+
+    def test_register_rejects_password_mismatch(self):
+        payload = {
+            "username": "newuser2",
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass124!",
+        }
+        response = self.client.post(reverse("api-v1:register"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("password_confirm", response.data["errors"])
+
     def test_public_cannot_create_race(self):
         payload = {
             "name": "Monaco Grand Prix",

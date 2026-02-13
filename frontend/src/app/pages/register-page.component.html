@@ -1,17 +1,23 @@
 <div class="login-shell">
   <section class="login-card">
     <p class="kicker">Authentication</p>
-    <h1>Sign in</h1>
-    <p class="subtitle">Use Django user credentials to get JWT tokens.</p>
+    <h1>Create account</h1>
+    <p class="subtitle">Sign up for a regular user account and continue with JWT authentication.</p>
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label>
         <span>Username</span>
         <input type="text" formControlName="username" autocomplete="username" />
       </label>
+
       <label>
         <span>Password</span>
-        <input type="password" formControlName="password" autocomplete="current-password" />
+        <input type="password" formControlName="password" autocomplete="new-password" />
+      </label>
+
+      <label>
+        <span>Confirm password</span>
+        <input type="password" formControlName="passwordConfirm" autocomplete="new-password" />
       </label>
 
       @if (errorMessage()) {
@@ -20,16 +26,16 @@
 
       <button type="submit" [disabled]="isSubmitting()">
         @if (isSubmitting()) {
-          Signing in...
+          Creating account...
         } @else {
-          Login
+          Create account
         }
       </button>
     </form>
 
     <p class="hint">
-      Need an account?
-      <a routerLink="/register">Create account</a>
+      Already have an account?
+      <a routerLink="/login">Sign in</a>
     </p>
     <p class="hint"><a routerLink="/">Back to dashboard</a></p>
   </section>

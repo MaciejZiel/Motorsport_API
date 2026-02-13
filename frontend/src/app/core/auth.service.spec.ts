@@ -59,6 +59,27 @@ describe('AuthService', () => {
     expect(window.sessionStorage.getItem(REFRESH_TOKEN_KEY)).toBe(refreshToken);
   });
 
+  it('stores access and refresh token after registration', () => {
+    const accessToken = buildJwt(3600);
+    const refreshToken = buildJwt(7200);
+
+    service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+
+    const request = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      username: 'newfan',
+      password: 'StrongPass123!',
+      password_confirm: 'StrongPass123!',
+    });
+    request.flush({ access: accessToken, refresh: refreshToken, user: { id: 1, username: 'newfan' } });
+
+    expect(service.getAccessToken()).toBe(accessToken);
+    expect(service.getRefreshToken()).toBe(refreshToken);
+    expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBe(accessToken);
+    expect(window.sessionStorage.getItem(REFRESH_TOKEN_KEY)).toBe(refreshToken);
+  });
+
   it('refreshes access token and keeps old refresh token if refresh response does not return new one', async () => {
     const accessToken = buildJwt(3600);
     const refreshToken = buildJwt(7200);

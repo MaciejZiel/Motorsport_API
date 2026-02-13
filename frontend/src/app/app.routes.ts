@@ -6,6 +6,7 @@ import { DriversPageComponent } from './pages/drivers-page.component';
 import { LoginPageComponent } from './pages/login-page.component';
 import { RaceDetailPageComponent } from './pages/race-detail-page.component';
 import { RacesPageComponent } from './pages/races-page.component';
+import { RegisterPageComponent } from './pages/register-page.component';
 import { TeamDetailPageComponent } from './pages/team-detail-page.component';
 import { TeamsPageComponent } from './pages/teams-page.component';
 
@@ -18,5 +19,6 @@ export const routes: Routes = [
   { path: 'races', component: RacesPageComponent, canActivate: [authGuard] },
   { path: 'races/:id', component: RaceDetailPageComponent, canActivate: [authGuard] },
   { path: 'login', component: LoginPageComponent, canActivate: [guestGuard] },
+  { path: 'register', component: RegisterPageComponent, canActivate: [guestGuard] },
   { path: '**', redirectTo: '' },
 ];

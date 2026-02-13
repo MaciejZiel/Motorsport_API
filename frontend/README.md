@@ -40,6 +40,7 @@ Configured in `src/app/api.config.ts` and routed through Angular proxy config:
 - `/races` Race calendar list
 - `/races/:id` Race detail
 - `/login` JWT sign-in page
+- `/register` JWT sign-up page
 
 ## JWT login
 
@@ -48,6 +49,10 @@ Frontend sends credentials to:
 `POST /api/v1/auth/token/`
 
 On success it stores `access` and `refresh` tokens in browser sessionStorage.
+
+Frontend can create a user account via:
+
+`POST /api/v1/auth/register/`
 
 ## Protected routes and auth header
 

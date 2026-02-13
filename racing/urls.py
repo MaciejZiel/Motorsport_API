@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import (
     DriverViewSet,
+    RegisterView,
     RaceResultViewSet,
     RaceViewSet,
     SeasonViewSet,
@@ -21,6 +22,7 @@ router.register("races", RaceViewSet, basename="race")
 router.register("results", RaceResultViewSet, basename="result")
 
 urlpatterns = [
+    path("auth/register/", RegisterView.as_view(), name="register"),
     path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("stats/", api_stats, name="api-stats"),

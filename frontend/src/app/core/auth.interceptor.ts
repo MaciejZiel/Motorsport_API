@@ -9,9 +9,10 @@ const RETRY_AFTER_REFRESH = new HttpContextToken<boolean>(() => false);
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
   const accessToken = auth.getAccessToken();
+  const isRegisterEndpoint = request.url === `${API_BASE_URL}/auth/register/`;
   const isTokenEndpoint = request.url === `${API_BASE_URL}/auth/token/`;
   const isRefreshEndpoint = request.url === `${API_BASE_URL}/auth/token/refresh/`;
-  const isAuthEndpoint = isTokenEndpoint || isRefreshEndpoint;
+  const isAuthEndpoint = isRegisterEndpoint || isTokenEndpoint || isRefreshEndpoint;
 
   const requestWithAccess = accessToken && !isAuthEndpoint
     ? request.clone({

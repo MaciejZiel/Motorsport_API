@@ -38,6 +38,7 @@
         <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
         @if (!auth.isAuthenticated()) {
           <a class="nav-link auth-link" routerLink="/login" routerLinkActive="active-link">Login</a>
+          <a class="nav-link auth-link" routerLink="/register" routerLinkActive="active-link">Register</a>
         } @else {
           <button class="nav-link auth-link logout-button" type="button" (click)="handleLogout()">
             Logout

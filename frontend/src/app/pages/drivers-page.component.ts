@@ -29,9 +29,9 @@ export class DriversPageComponent {
   readonly hasNextPage = signal(false);
   readonly hasPreviousPage = signal(false);
 
-  teamIdFilter = '';
+  teamIdFilter: string | number | null = '';
   countryFilter = '';
-  minPointsFilter = '';
+  minPointsFilter: string | number | null = '';
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
@@ -105,9 +105,9 @@ export class DriversPageComponent {
 
   hasActiveFilters(): boolean {
     return Boolean(
-      this.teamIdFilter.trim() ||
+      this.parseOptionalPositiveInteger(this.teamIdFilter) !== undefined ||
         this.countryFilter.trim() ||
-        this.minPointsFilter.trim()
+        this.parseOptionalPositiveInteger(this.minPointsFilter, true) !== undefined
     );
   }
 
@@ -135,12 +135,15 @@ export class DriversPageComponent {
     return 'Cannot load drivers list from API.';
   }
 
-  private parseOptionalPositiveInteger(value: string, allowZero = false): number | undefined {
-    const normalized = value.trim();
-    if (!normalized) {
+  private parseOptionalPositiveInteger(
+    value: string | number | null | undefined,
+    allowZero = false
+  ): number | undefined {
+    if (value === null || value === undefined) {
       return undefined;
     }
-    const parsed = Number(normalized);
+
+    const parsed = typeof value === 'number' ? value : Number(value.trim());
     if (!Number.isInteger(parsed)) {
       return undefined;
     }

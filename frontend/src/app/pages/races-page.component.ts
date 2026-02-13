@@ -31,7 +31,7 @@ export class RacesPageComponent {
   readonly hasNextPage = signal(false);
   readonly hasPreviousPage = signal(false);
 
-  seasonFilter = '';
+  seasonFilter: string | number | null = '';
   countryFilter = '';
 
   constructor() {
@@ -102,7 +102,9 @@ export class RacesPageComponent {
   }
 
   hasActiveFilters(): boolean {
-    return Boolean(this.seasonFilter.trim() || this.countryFilter.trim());
+    return Boolean(
+      this.parseOptionalPositiveInteger(this.seasonFilter) !== undefined || this.countryFilter.trim()
+    );
   }
 
   emptyStateMessage(): string {
@@ -112,12 +114,12 @@ export class RacesPageComponent {
     return 'No races available yet.';
   }
 
-  private parseOptionalPositiveInteger(value: string): number | undefined {
-    const normalized = value.trim();
-    if (!normalized) {
+  private parseOptionalPositiveInteger(value: string | number | null | undefined): number | undefined {
+    if (value === null || value === undefined) {
       return undefined;
     }
-    const parsed = Number(normalized);
+
+    const parsed = typeof value === 'number' ? value : Number(value.trim());
     if (!Number.isInteger(parsed) || parsed <= 0) {
       return undefined;
     }
