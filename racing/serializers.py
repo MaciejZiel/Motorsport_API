@@ -46,6 +46,7 @@ class RegisterUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
     is_staff = serializers.BooleanField()
+    is_superuser = serializers.BooleanField()
 
 
 class RegisterResponseSerializer(serializers.Serializer):
@@ -98,6 +99,12 @@ class ApiStatsSerializer(serializers.Serializer):
     total_races = serializers.IntegerField()
     total_results = serializers.IntegerField()
     top_points = serializers.IntegerField()
+
+
+class HealthCheckSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["ok", "degraded"])
+    service = serializers.CharField()
+    database = serializers.BooleanField()
 
 
 class DetailMessageSerializer(serializers.Serializer):
@@ -177,3 +184,20 @@ class RaceResultSerializer(serializers.ModelSerializer):
             "race_id",
             "driver_id",
         ]
+
+    def validate(self, attrs):
+        validated = super().validate(attrs)
+
+        race = validated.get("race", getattr(self.instance, "race", None))
+        fastest_lap = validated.get("fastest_lap", getattr(self.instance, "fastest_lap", False))
+
+        if race and fastest_lap:
+            queryset = RaceResult.objects.filter(race=race, fastest_lap=True)
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise serializers.ValidationError(
+                    {"fastest_lap": ["Only one fastest lap per race is allowed."]}
+                )
+
+        return validated

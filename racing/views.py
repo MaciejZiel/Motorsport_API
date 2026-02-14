@@ -1,3 +1,4 @@
+from django.db import DatabaseError, connection
 from django.db.models import Count, Max, Q, Sum
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -20,6 +21,7 @@ from .serializers import (
     DetailMessageSerializer,
     DriverSeasonStandingsResponseSerializer,
     DriverSerializer,
+    HealthCheckSerializer,
     LogoutSerializer,
     RaceResultSerializer,
     RaceSerializer,
@@ -31,12 +33,36 @@ from .serializers import (
 )
 
 
+def parse_optional_int_query_param(
+    query_value: str | None,
+    param_name: str,
+    *,
+    allow_zero: bool = False,
+) -> int | None:
+    if query_value is None:
+        return None
+
+    normalized = query_value.strip()
+    if not normalized:
+        return None
+
+    if not normalized.isdigit():
+        raise ValidationError({param_name: ["Must be an integer."]})
+
+    parsed = int(normalized)
+    if parsed < 0 or (not allow_zero and parsed == 0):
+        raise ValidationError({param_name: ["Must be a positive integer."]})
+
+    return parsed
+
+
 def resolve_season(query_value: str | None):
-    if query_value:
-        if query_value.isdigit() and len(query_value) == 4:
-            return Season.objects.filter(year=int(query_value)).first()
-        if query_value.isdigit():
-            return Season.objects.filter(id=int(query_value)).first()
+    season_value = parse_optional_int_query_param(query_value, "season")
+    if season_value is not None:
+        normalized = query_value.strip() if query_value else ""
+        if len(normalized) == 4:
+            return Season.objects.filter(year=season_value).first()
+        return Season.objects.filter(id=season_value).first()
     return Season.objects.order_by("-year").first()
 
 
@@ -71,12 +97,14 @@ class DriverViewSet(viewsets.ModelViewSet):
         country = self.request.query_params.get("country")
         min_points = self.request.query_params.get("min_points")
 
-        if team_id:
-            queryset = queryset.filter(team_id=team_id)
+        team_id_value = parse_optional_int_query_param(team_id, "team")
+        if team_id_value is not None:
+            queryset = queryset.filter(team_id=team_id_value)
         if country:
             queryset = queryset.filter(team__country__icontains=country)
-        if min_points and min_points.isdigit():
-            queryset = queryset.filter(points__gte=int(min_points))
+        min_points_value = parse_optional_int_query_param(min_points, "min_points", allow_zero=True)
+        if min_points_value is not None:
+            queryset = queryset.filter(points__gte=min_points_value)
 
         return queryset.order_by("-points", "name")
 
@@ -92,7 +120,11 @@ class DriverViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path=r"by-team/(?P<team_id>[^/.]+)")
     def by_team(self, request, team_id=None):
-        queryset = self.get_queryset().filter(team_id=team_id)
+        parsed_team_id = parse_optional_int_query_param(team_id, "team_id")
+        if parsed_team_id is None:
+            raise ValidationError({"team_id": ["This field is required."]})
+
+        queryset = self.get_queryset().filter(team_id=parsed_team_id)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -108,8 +140,9 @@ class SeasonViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Season.objects.annotate(race_count=Count("races"))
         year = self.request.query_params.get("year")
-        if year and year.isdigit():
-            queryset = queryset.filter(year=int(year))
+        year_value = parse_optional_int_query_param(year, "year")
+        if year_value is not None:
+            queryset = queryset.filter(year=year_value)
         return queryset
 
 
@@ -121,11 +154,13 @@ class RaceViewSet(viewsets.ModelViewSet):
         queryset = Race.objects.select_related("season").all().order_by("season__year", "round_number")
         season = self.request.query_params.get("season")
         country = self.request.query_params.get("country")
-        if season and season.isdigit():
-            if len(season) == 4:
-                queryset = queryset.filter(season__year=int(season))
+        season_value = parse_optional_int_query_param(season, "season")
+        if season_value is not None:
+            normalized_season = season.strip() if season else ""
+            if len(normalized_season) == 4:
+                queryset = queryset.filter(season__year=season_value)
             else:
-                queryset = queryset.filter(season_id=int(season))
+                queryset = queryset.filter(season_id=season_value)
         if country:
             queryset = queryset.filter(country__icontains=country)
         return queryset
@@ -141,15 +176,21 @@ class RaceResultViewSet(viewsets.ModelViewSet):
         season = self.request.query_params.get("season")
         driver_id = self.request.query_params.get("driver")
 
-        if race_id and race_id.isdigit():
-            queryset = queryset.filter(race_id=int(race_id))
-        if season and season.isdigit():
-            if len(season) == 4:
-                queryset = queryset.filter(race__season__year=int(season))
+        race_id_value = parse_optional_int_query_param(race_id, "race")
+        if race_id_value is not None:
+            queryset = queryset.filter(race_id=race_id_value)
+
+        season_value = parse_optional_int_query_param(season, "season")
+        if season_value is not None:
+            normalized_season = season.strip() if season else ""
+            if len(normalized_season) == 4:
+                queryset = queryset.filter(race__season__year=season_value)
             else:
-                queryset = queryset.filter(race__season_id=int(season))
-        if driver_id and driver_id.isdigit():
-            queryset = queryset.filter(driver_id=int(driver_id))
+                queryset = queryset.filter(race__season_id=season_value)
+
+        driver_id_value = parse_optional_int_query_param(driver_id, "driver")
+        if driver_id_value is not None:
+            queryset = queryset.filter(driver_id=driver_id_value)
 
         return queryset.order_by("race__race_date", "position")
 
@@ -176,6 +217,7 @@ class RegisterView(APIView):
                     "id": user.id,
                     "username": user.get_username(),
                     "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
                 },
             },
             status=status.HTTP_201_CREATED,
@@ -324,6 +366,27 @@ def constructor_season_standings(request):
         for row in standings
     ]
     return Response({"season": season.year, "results": payload}, status=status.HTTP_200_OK)
+
+
+@extend_schema(responses={200: HealthCheckSerializer, 503: HealthCheckSerializer})
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    database_ok = True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except DatabaseError:
+        database_ok = False
+
+    payload = {
+        "status": "ok" if database_ok else "degraded",
+        "service": "motorsport-api",
+        "database": database_ok,
+    }
+    response_status = status.HTTP_200_OK if database_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+    return Response(payload, status=response_status)
 
 
 @extend_schema(responses={200: ApiStatsSerializer})

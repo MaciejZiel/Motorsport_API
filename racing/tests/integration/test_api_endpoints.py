@@ -67,6 +67,18 @@ class MotorsportApiTests(APITestCase):
         response = self.client.get(reverse("schema-swagger-ui"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_root_redirects_to_swagger_docs(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("swagger-ui"))
+
+    def test_health_endpoint_reports_api_and_database_status(self):
+        response = self.client.get(reverse("api-health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["service"], "motorsport-api")
+        self.assertTrue(response.data["database"])
+
     def test_standings_are_sorted_descending(self):
         response = self.client.get(reverse("api-v1:driver-standings"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -227,6 +239,8 @@ class MotorsportApiTests(APITestCase):
         self.assertIn("refresh", response.data)
         self.assertEqual(response.data["user"]["username"], "newfan")
         self.assertFalse(response.data["user"]["is_staff"])
+        self.assertIn("is_superuser", response.data["user"])
+        self.assertFalse(response.data["user"]["is_superuser"])
         User = get_user_model()
         self.assertTrue(User.objects.filter(username="newfan").exists())
 
@@ -305,6 +319,57 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(response.data["error"], "bad_request")
         self.assertEqual(response.data["status_code"], status.HTTP_400_BAD_REQUEST)
         self.assertIn("errors", response.data)
+
+    def test_duplicate_fastest_lap_per_race_is_rejected(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        RaceResult.objects.filter(race=self.race_1, driver=self.driver_max).update(fastest_lap=True)
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": self.driver_luca.id,
+            "position": 3,
+            "points_earned": 15,
+            "fastest_lap": True,
+        }
+
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+
+    def test_invalid_driver_min_points_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:driver-list"), {"min_points": "abc"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("min_points", response.data["errors"])
+
+    def test_invalid_race_season_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:race-list"), {"season": "latest"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("season", response.data["errors"])
+
+    def test_invalid_result_driver_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:result-list"), {"driver": "fast"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("driver", response.data["errors"])
+
+    def test_invalid_standings_season_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:driver-season-standings"), {"season": "current"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("season", response.data["errors"])
 
     def test_standings_without_season_use_latest(self):
         season_2025 = Season.objects.create(year=2025, name="World Championship 2025")

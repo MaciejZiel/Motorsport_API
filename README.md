@@ -32,6 +32,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `GET /api/v1/standings/drivers/?season=2026`
 - `GET /api/v1/standings/constructors/?season=2026`
 - `GET /api/v1/stats/`
+- `GET /api/health/`
 - `GET /api/v1/auth/me/`
 - `POST /api/v1/auth/logout/`
 - `POST /api/v1/auth/register/`
@@ -39,6 +40,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `POST /api/v1/auth/token/refresh/`
 
 ## API docs
+- Root URL `/` redirects to Swagger UI (`/api/docs/`)
 - OpenAPI schema: `/api/schema/`
 - Swagger UI: `/api/schema/swagger-ui/` (alias: `/api/docs/`)
 - ReDoc: `/api/schema/redoc/` (alias: `/api/redoc/`)
@@ -85,12 +87,12 @@ docker compose up --build
 # docker-compose up --build
 ```
 
-Compose starts three services: `db` (PostgreSQL), `api` (Django + gunicorn), and `frontend` (Angular dev server).
+Compose starts three services: `db` (PostgreSQL), `api` (Django + gunicorn), and `frontend` (Nginx serving built Angular app).
 
 - Frontend: `http://127.0.0.1:4200`
 - Backend API: `http://127.0.0.1:8000`
 
-Frontend requests `/api/*` are proxied to the backend service in Docker.
+Frontend requests `/api/*` are proxied by Nginx to the backend service in Docker.
 
 ## CD pipeline (GitHub Actions)
 - Workflow file: `.github/workflows/cd.yml`

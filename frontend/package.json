@@ -6,6 +6,7 @@
     "start": "ng serve --proxy-config proxy.local.conf.json",
     "start:docker": "ng serve --proxy-config proxy.docker.conf.json",
     "build": "ng build",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

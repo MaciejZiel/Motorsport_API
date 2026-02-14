@@ -1,4 +1,5 @@
 from django.test import TestCase
+from rest_framework.exceptions import ValidationError
 
 from racing.models import Season
 from racing.views import resolve_season
@@ -24,3 +25,7 @@ class ResolveSeasonTests(TestCase):
     def test_missing_explicit_year_returns_none(self):
         season = resolve_season("2035")
         self.assertIsNone(season)
+
+    def test_invalid_non_numeric_query_raises_validation_error(self):
+        with self.assertRaises(ValidationError):
+            resolve_season("latest")

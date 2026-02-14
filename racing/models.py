@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Q, Sum
 
 
 class Team(models.Model):
@@ -88,6 +88,11 @@ class RaceResult(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["race", "position"], name="unique_position_per_race"),
             models.UniqueConstraint(fields=["race", "driver"], name="unique_driver_result_per_race"),
+            models.UniqueConstraint(
+                fields=["race"],
+                condition=Q(fastest_lap=True),
+                name="unique_fastest_lap_per_race",
+            ),
         ]
 
     def __str__(self):
