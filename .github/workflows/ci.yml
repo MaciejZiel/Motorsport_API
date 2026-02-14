@@ -25,6 +25,16 @@ jobs:
       - name: Run backend static checks
         run: ruff check Motorsport_API racing --select E9,F63,F7,F82
 
+      - name: Ensure no missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run Django deploy checks
+        env:
+          DJANGO_ENV: production
+          DJANGO_DEBUG: "False"
+          DJANGO_SECRET_KEY: "Xv9!2qP4#sL8@dN3^rT6&uW1*zA5+fC7=Hj0Km4?Qp8!yR2$Tz"
+        run: python manage.py check --deploy --fail-level WARNING
+
       - name: Run migrations
         run: python manage.py migrate
 
