@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . /app
 
+RUN python manage.py collectstatic --noinput
+
 RUN useradd --create-home appuser \
     && chown -R appuser:appuser /app
 
