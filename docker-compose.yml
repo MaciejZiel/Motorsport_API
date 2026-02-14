@@ -21,9 +21,9 @@ services:
       dockerfile: Dockerfile
     command: sh -c "python manage.py migrate && gunicorn Motorsport_API.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
     environment:
-      DJANGO_ENV: ${DJANGO_ENV:-production}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-in-production}
+      # Local compose should work out-of-the-box without production-only secrets.
+      DJANGO_ENV: ${DJANGO_ENV:-development}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
       DJANGO_DB_ENGINE: postgresql
       POSTGRES_DB: ${POSTGRES_DB:-motorsport_api}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
