@@ -9,13 +9,21 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 
 from .models import Driver, Race, RaceResult, Season, Team
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
+    ApiStatsSerializer,
+    AuthMeSerializer,
+    ConstructorSeasonStandingsResponseSerializer,
+    DetailMessageSerializer,
+    DriverSeasonStandingsResponseSerializer,
     DriverSerializer,
+    LogoutSerializer,
     RaceResultSerializer,
     RaceSerializer,
+    RegisterResponseSerializer,
     RegisterSerializer,
     SeasonSerializer,
     TeamDetailSerializer,
@@ -147,11 +155,13 @@ class RaceResultViewSet(viewsets.ModelViewSet):
 
 
 class RegisterView(APIView):
+    serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_register"
 
+    @extend_schema(request=RegisterSerializer, responses={201: RegisterResponseSerializer})
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -187,8 +197,10 @@ class TokenRefreshScopedView(TokenRefreshView):
 
 
 class AuthMeView(APIView):
+    serializer_class = AuthMeSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={200: AuthMeSerializer})
     def get(self, request):
         user = request.user
         return Response(
@@ -203,10 +215,15 @@ class AuthMeView(APIView):
 
 
 class LogoutView(APIView):
+    serializer_class = LogoutSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_logout"
 
+    @extend_schema(
+        request=LogoutSerializer,
+        responses={204: OpenApiResponse(description="Refresh token blacklisted.")},
+    )
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not isinstance(refresh_token, str) or not refresh_token.strip():
@@ -221,6 +238,21 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="season",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Season year (YYYY) or season id. Uses latest season when omitted.",
+            required=False,
+        )
+    ],
+    responses={
+        200: DriverSeasonStandingsResponseSerializer,
+        404: DetailMessageSerializer,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def driver_season_standings(request):
@@ -253,6 +285,21 @@ def driver_season_standings(request):
     return Response({"season": season.year, "results": payload}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="season",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Season year (YYYY) or season id. Uses latest season when omitted.",
+            required=False,
+        )
+    ],
+    responses={
+        200: ConstructorSeasonStandingsResponseSerializer,
+        404: DetailMessageSerializer,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def constructor_season_standings(request):
@@ -279,6 +326,7 @@ def constructor_season_standings(request):
     return Response({"season": season.year, "results": payload}, status=status.HTTP_200_OK)
 
 
+@extend_schema(responses={200: ApiStatsSerializer})
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def api_stats(request):

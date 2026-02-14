@@ -42,6 +42,68 @@ class RegisterSerializer(serializers.Serializer):
         )
 
 
+class RegisterUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    is_staff = serializers.BooleanField()
+
+
+class RegisterResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = RegisterUserSerializer()
+
+
+class AuthMeSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    is_staff = serializers.BooleanField()
+    is_superuser = serializers.BooleanField()
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
+class DriverSeasonStandingSerializer(serializers.Serializer):
+    driver_id = serializers.IntegerField()
+    driver_name = serializers.CharField()
+    team_name = serializers.CharField()
+    total_points = serializers.IntegerField()
+    wins = serializers.IntegerField()
+    podiums = serializers.IntegerField()
+
+
+class DriverSeasonStandingsResponseSerializer(serializers.Serializer):
+    season = serializers.IntegerField()
+    results = DriverSeasonStandingSerializer(many=True)
+
+
+class ConstructorSeasonStandingSerializer(serializers.Serializer):
+    team_id = serializers.IntegerField()
+    team_name = serializers.CharField()
+    total_points = serializers.IntegerField()
+    wins = serializers.IntegerField()
+
+
+class ConstructorSeasonStandingsResponseSerializer(serializers.Serializer):
+    season = serializers.IntegerField()
+    results = ConstructorSeasonStandingSerializer(many=True)
+
+
+class ApiStatsSerializer(serializers.Serializer):
+    total_teams = serializers.IntegerField()
+    total_drivers = serializers.IntegerField()
+    total_seasons = serializers.IntegerField()
+    total_races = serializers.IntegerField()
+    total_results = serializers.IntegerField()
+    top_points = serializers.IntegerField()
+
+
+class DetailMessageSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+
 class TeamSlimSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
