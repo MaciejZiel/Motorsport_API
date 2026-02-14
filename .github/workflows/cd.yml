@@ -36,6 +36,7 @@ jobs:
     outputs:
       backend_image: ${{ steps.meta.outputs.backend_image }}
       frontend_image: ${{ steps.meta.outputs.frontend_image }}
+      release_id: ${{ steps.meta.outputs.release_id }}
       publish: ${{ steps.policy.outputs.publish }}
     steps:
       - name: Checkout
@@ -57,6 +58,11 @@ jobs:
         run: |
           OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           SHORT_SHA="${GITHUB_SHA::7}"
+          SAFE_REF="$(echo "${GITHUB_REF_NAME}" | tr '/:@' '-' | tr -cd '[:alnum:]._-')"
+          if [[ -z "${SAFE_REF}" ]]; then
+            SAFE_REF="manual"
+          fi
+          RELEASE_ID="${SAFE_REF}-${SHORT_SHA}"
 
           BACKEND_BASE="ghcr.io/${OWNER_LC}/motorsport-api-backend"
           FRONTEND_BASE="ghcr.io/${OWNER_LC}/motorsport-api-frontend"
@@ -69,18 +75,33 @@ jobs:
 
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             RELEASE_TAG="${GITHUB_REF_NAME}"
+            RELEASE_ID="${RELEASE_TAG}-${SHORT_SHA}"
             BACKEND_TAGS="${BACKEND_TAGS}"$'\n'"${BACKEND_BASE}:${RELEASE_TAG}"$'\n'"${BACKEND_BASE}:latest"
             FRONTEND_TAGS="${FRONTEND_TAGS}"$'\n'"${FRONTEND_BASE}:${RELEASE_TAG}"$'\n'"${FRONTEND_BASE}:latest"
           fi
 
           echo "backend_image=${BACKEND_CANONICAL}" >> "$GITHUB_OUTPUT"
           echo "frontend_image=${FRONTEND_CANONICAL}" >> "$GITHUB_OUTPUT"
+          echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
           echo "backend_tags<<EOF" >> "$GITHUB_OUTPUT"
           echo "${BACKEND_TAGS}" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
           echo "frontend_tags<<EOF" >> "$GITHUB_OUTPUT"
           echo "${FRONTEND_TAGS}" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Upload deployment bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-bundle
+          path: |
+            deploy/compose.production.yml
+            deploy/.env.production.example
+            deploy/README.md
+            docs/runbooks/production-deployment.md
+            scripts/deploy_release.sh
+            scripts/rollback_release.sh
+          if-no-files-found: error
 
       - name: Build backend image
         run: docker build -t "${{ steps.meta.outputs.backend_image }}" -f Dockerfile .
@@ -162,6 +183,7 @@ jobs:
           DEPLOY_HEALTHCHECK_URL: ${{ secrets.DEPLOY_HEALTHCHECK_URL }}
           BACKEND_IMAGE: ${{ needs.release.outputs.backend_image }}
           FRONTEND_IMAGE: ${{ needs.release.outputs.frontend_image }}
+          RELEASE_ID: ${{ needs.release.outputs.release_id }}
           TARGET_ENV: ${{ inputs.environment }}
           PUBLISH_ENABLED: ${{ needs.release.outputs.publish }}
         run: |
@@ -175,11 +197,13 @@ jobs:
           payload="$(cat <<JSON
           {
             "environment": "${TARGET_ENV}",
+            "release_id": "${RELEASE_ID}",
             "backend_image": "${BACKEND_IMAGE}",
             "frontend_image": "${FRONTEND_IMAGE}",
             "repository": "${GITHUB_REPOSITORY}",
             "ref": "${GITHUB_REF_NAME}",
-            "sha": "${GITHUB_SHA}"
+            "sha": "${GITHUB_SHA}",
+            "runbook": "docs/runbooks/production-deployment.md"
           }
           JSON
           )"

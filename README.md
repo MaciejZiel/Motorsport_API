@@ -121,6 +121,7 @@ For production-like runs, provide `DJANGO_ENV=production` and a strong `DJANGO_S
 - Outputs:
   - Backend image: `ghcr.io/<owner>/motorsport-api-backend`
   - Frontend image: `ghcr.io/<owner>/motorsport-api-frontend`
+  - Deployment bundle artifact (IaC + scripts + runbook)
 - Built-in verification:
   - Backend image smoke test (`/api/docs/`)
   - Frontend image smoke test (`/`)
@@ -130,6 +131,33 @@ Optional deployment integration (manual workflow run):
 - Optional secret: `DEPLOY_HEALTHCHECK_URL`
 - The deploy job posts JSON payload with selected environment and published image tags.
 - Use GitHub Environments (`staging` / `production`) for approval gates and protection rules.
+
+## Production rollout and rollback
+- Infrastructure as code:
+  - `deploy/compose.production.yml`
+  - `deploy/.env.production.example`
+- Runbook:
+  - `docs/runbooks/production-deployment.md`
+- Automation scripts:
+  - `scripts/deploy_release.sh`
+  - `scripts/rollback_release.sh`
+
+Example rollout:
+```bash
+cp deploy/.env.production.example deploy/.env.production
+# edit deploy/.env.production with real secrets
+
+bash scripts/deploy_release.sh \
+  --backend-image ghcr.io/<owner>/motorsport-api-backend:<tag-or-digest> \
+  --frontend-image ghcr.io/<owner>/motorsport-api-frontend:<tag-or-digest> \
+  --release-id <release-id> \
+  --env-file deploy/.env.production
+```
+
+Example rollback:
+```bash
+bash scripts/rollback_release.sh --env-file deploy/.env.production
+```
 
 ## Production security baseline
 Set these in production:

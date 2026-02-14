@@ -33,3 +33,9 @@ frontend/coverage/
 # OS
 .DS_Store
 Thumbs.db
+
+# Production deployment local state
+deploy/.env.production
+deploy/releases/*.env
+deploy/releases/*.log
+!deploy/releases/.gitkeep
