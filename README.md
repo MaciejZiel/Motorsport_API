@@ -94,6 +94,7 @@ Compose starts three services: `db` (PostgreSQL), `api` (Django + gunicorn), and
 
 Frontend requests `/api/*` are proxied by Nginx to the backend service in Docker.
 Backend static files (including Django admin assets) are collected with `collectstatic` and served by WhiteNoise.
+Frontend image API upstream is configurable via `FRONTEND_API_UPSTREAM` (default: `http://api:8000`).
 
 Default compose values run Django in local development mode (`DJANGO_ENV=development`, `DJANGO_DEBUG=True`) so the stack starts without extra setup.
 For production-like runs, provide `DJANGO_ENV=production` and a strong `DJANGO_SECRET_KEY` (see production baseline below).

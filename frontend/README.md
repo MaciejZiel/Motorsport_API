@@ -28,7 +28,8 @@ This frontend uses relative API paths:
 Configured in `src/app/api.config.ts` and routed either by Angular dev proxy or Nginx:
 
 - Local dev (`npm run start`): proxy target `http://127.0.0.1:8000`
-- Docker compose (Nginx container): `/api/*` proxy target `http://api:8000`
+- Docker compose (Nginx container): `/api/*` proxy target from `API_UPSTREAM` (default via compose: `http://api:8000`)
+- To override in compose, set `FRONTEND_API_UPSTREAM` (example: `http://host.docker.internal:8000`)
 
 ## Current routes
 
