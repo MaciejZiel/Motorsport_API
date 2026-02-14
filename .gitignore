@@ -5,6 +5,9 @@
 *.pyd
 *.egg-info/
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
 # Virtual env
 .venv/

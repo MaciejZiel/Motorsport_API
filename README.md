@@ -161,6 +161,7 @@ python manage.py check --deploy
 pytest
 pytest racing/tests/unit
 pytest racing/tests/integration
+pytest --cov=Motorsport_API --cov=racing --cov-config=.coveragerc --cov-report=term-missing
 ```
 
 ## Frontend (Angular)

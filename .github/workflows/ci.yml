@@ -39,7 +39,7 @@ jobs:
         run: python manage.py migrate
 
       - name: Run tests
-        run: pytest
+        run: pytest --cov=Motorsport_API --cov=racing --cov-config=.coveragerc --cov-report=term-missing --cov-fail-under=90
 
   frontend:
     runs-on: ubuntu-latest
