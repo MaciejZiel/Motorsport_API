@@ -4,8 +4,6 @@ import { Observable, catchError, finalize, map, of, shareReplay, tap, throwError
 import { API_BASE_URL } from '../api.config';
 import { AuthUser, RegisterResponse, TokenPair } from './auth.types';
 
-const ACCESS_TOKEN_KEY = 'motorsport_access_token';
-const REFRESH_TOKEN_KEY = 'motorsport_refresh_token';
 const CURRENT_USER_KEY = 'motorsport_current_user';
 
 @Injectable({ providedIn: 'root' })
@@ -13,21 +11,15 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private refreshInFlight$: Observable<string> | null = null;
 
-  private readonly accessToken = signal<string | null>(this.readStorage(ACCESS_TOKEN_KEY));
-  private readonly refreshToken = signal<string | null>(this.readStorage(REFRESH_TOKEN_KEY));
   private readonly currentUser = signal<AuthUser | null>(this.readUserStorage());
 
-  readonly isAuthenticated = computed(
-    () => this.isTokenUsable(this.accessToken()) || this.isTokenUsable(this.refreshToken())
-  );
+  readonly isAuthenticated = computed(() => Boolean(this.currentUser()));
   readonly isAdmin = computed(
     () => Boolean(this.currentUser()?.is_staff || this.currentUser()?.is_superuser)
   );
 
   login(username: string, password: string): Observable<TokenPair> {
-    return this.http.post<TokenPair>(`${API_BASE_URL}/auth/token/`, { username, password }).pipe(
-      tap((tokens) => this.setTokens(tokens))
-    );
+    return this.http.post<TokenPair>(`${API_BASE_URL}/auth/token/`, { username, password });
   }
 
   register(username: string, password: string, passwordConfirm: string): Observable<TokenPair> {
@@ -39,7 +31,6 @@ export class AuthService {
       })
       .pipe(
         tap((response) => {
-          this.setTokens(response);
           this.setCurrentUser(response.user);
         }),
         map((response) => ({
@@ -50,27 +41,16 @@ export class AuthService {
   }
 
   refreshAccessToken(): Observable<string> {
-    const refresh = this.getRefreshToken();
-    if (!refresh) {
-      return throwError(() => new Error('Missing refresh token'));
-    }
-
     if (this.refreshInFlight$) {
       return this.refreshInFlight$;
     }
 
     this.refreshInFlight$ = this.http
-      .post<{ access: string; refresh?: string }>(`${API_BASE_URL}/auth/token/refresh/`, { refresh })
+      .post<{ access: string }>(`${API_BASE_URL}/auth/token/refresh/`, {})
       .pipe(
-        tap((tokens) =>
-          this.setTokens({
-            access: tokens.access,
-            refresh: tokens.refresh ?? refresh,
-          })
-        ),
         map((tokens) => tokens.access),
         catchError((error) => {
-          this.clearTokens();
+          this.clearAuthState();
           return throwError(() => error);
         }),
         finalize(() => {
@@ -83,15 +63,9 @@ export class AuthService {
   }
 
   logout(): Observable<void> {
-    const refresh = this.readStorage(REFRESH_TOKEN_KEY);
-    if (!refresh) {
-      this.clearTokens();
-      return of(void 0);
-    }
-
-    return this.http.post<void>(`${API_BASE_URL}/auth/logout/`, { refresh }).pipe(
+    return this.http.post<void>(`${API_BASE_URL}/auth/logout/`, {}).pipe(
       catchError(() => of(void 0)),
-      tap(() => this.clearTokens()),
+      tap(() => this.clearAuthState()),
       map(() => void 0)
     );
   }
@@ -102,14 +76,10 @@ export class AuthService {
       return of(existingUser);
     }
 
-    if (!this.isAuthenticated()) {
-      return of(null);
-    }
-
     return this.http.get<AuthUser>(`${API_BASE_URL}/auth/me/`).pipe(
       tap((user) => this.setCurrentUser(user)),
       catchError(() => {
-        this.clearTokens();
+        this.clearAuthState();
         return of(null);
       })
     );
@@ -119,34 +89,12 @@ export class AuthService {
     return this.currentUser();
   }
 
-  getAccessToken(): string | null {
-    return this.readValidToken(
-      this.accessToken(),
-      ACCESS_TOKEN_KEY,
-      (value) => this.accessToken.set(value)
-    );
-  }
-
-  getRefreshToken(): string | null {
-    return this.readValidToken(
-      this.refreshToken(),
-      REFRESH_TOKEN_KEY,
-      (value) => this.refreshToken.set(value)
-    );
-  }
-
   clearTokens(): void {
-    this.setCurrentUser(null);
-    this.setTokens({ access: '', refresh: '' });
+    this.clearAuthState();
   }
 
-  private setTokens(tokens: TokenPair): void {
-    const access = tokens.access || null;
-    const refresh = tokens.refresh || null;
-    this.accessToken.set(access);
-    this.refreshToken.set(refresh);
-    this.writeStorage(ACCESS_TOKEN_KEY, access);
-    this.writeStorage(REFRESH_TOKEN_KEY, refresh);
+  private clearAuthState(): void {
+    this.setCurrentUser(null);
   }
 
   private setCurrentUser(user: AuthUser | null): void {
@@ -202,59 +150,4 @@ export class AuthService {
     }
   }
 
-  private readValidToken(
-    token: string | null,
-    key: string,
-    updateToken: (value: string | null) => void
-  ): string | null {
-    if (!token) {
-      return null;
-    }
-
-    if (!this.isTokenUsable(token)) {
-      updateToken(null);
-      this.writeStorage(key, null);
-      return null;
-    }
-
-    return token;
-  }
-
-  private isTokenUsable(token: string | null): boolean {
-    if (!token) {
-      return false;
-    }
-    return !this.isTokenExpired(token);
-  }
-
-  private isTokenExpired(token: string): boolean {
-    const payload = this.parseTokenPayload(token);
-    const expiresAt = payload?.['exp'];
-    if (typeof expiresAt !== 'number') {
-      return true;
-    }
-
-    const nowUnixSeconds = Math.floor(Date.now() / 1000);
-    return expiresAt <= nowUnixSeconds + 5;
-  }
-
-  private parseTokenPayload(token: string): Record<string, unknown> | null {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return null;
-    }
-
-    try {
-      const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
-      const decoded = atob(padded);
-      const payload = JSON.parse(decoded);
-      if (!payload || typeof payload !== 'object') {
-        return null;
-      }
-      return payload as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
 }

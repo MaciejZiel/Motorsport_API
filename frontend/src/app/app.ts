@@ -41,9 +41,7 @@ export class App {
 
   constructor() {
     this.applyTheme(this.theme());
-    if (this.auth.isAuthenticated()) {
-      this.auth.ensureCurrentUser().subscribe();
-    }
+    this.auth.ensureCurrentUser().subscribe();
   }
 
   toggleTheme(): void {

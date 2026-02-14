@@ -50,7 +50,8 @@ Frontend sends credentials to:
 
 `POST /api/v1/auth/token/`
 
-On success it stores `access` and `refresh` tokens in browser sessionStorage.
+On success backend sets `HttpOnly` auth cookies (`access` + `refresh`).
+Frontend keeps only the current user profile cache in `sessionStorage`.
 
 Frontend can create a user account via:
 
@@ -62,15 +63,14 @@ Frontend logout calls:
 
 to blacklist the current refresh token server-side.
 
-## Protected routes and auth header
+## Protected routes and auth flow
 
 - Routes `/drivers`, `/drivers/:id`, `/teams`, `/teams/:id`, `/races`, `/races/:id` require login.
 - Route `/admin` requires staff/superuser role.
 - Logged-out user is redirected to `/login?next=...`.
 - Logged-in user opening `/login` is redirected to `/`.
-- HTTP requests (except register, token, and token refresh endpoints) include `Authorization: Bearer <access>` automatically.
 - Frontend uses `GET /api/v1/auth/me/` to resolve current user role and admin access.
-- On API `401`, frontend uses the refresh token (`POST /api/v1/auth/token/refresh/`) and retries the failed request once.
+- On API `401`, frontend triggers cookie-based refresh (`POST /api/v1/auth/token/refresh/`) and retries the failed request once.
 
 ## UI behavior
 

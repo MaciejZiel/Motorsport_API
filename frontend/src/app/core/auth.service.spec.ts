@@ -5,23 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../api.config';
 import { AuthService } from './auth.service';
 
-const ACCESS_TOKEN_KEY = 'motorsport_access_token';
-const REFRESH_TOKEN_KEY = 'motorsport_refresh_token';
-
-function base64UrlEncode(value: string): string {
-  return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function buildJwt(expiresInSeconds: number): string {
-  const header = base64UrlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = base64UrlEncode(
-    JSON.stringify({
-      exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
-      sub: 'test-user',
-    })
-  );
-  return `${header}.${payload}.signature`;
-}
+const CURRENT_USER_KEY = 'motorsport_current_user';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -43,58 +27,65 @@ describe('AuthService', () => {
     window.sessionStorage.clear();
   });
 
-  it('stores access and refresh token after login', () => {
-    const accessToken = buildJwt(3600);
-    const refreshToken = buildJwt(7200);
-
+  it('posts credentials to login endpoint', () => {
     service.login('admin', 'testpass123').subscribe();
 
     const request = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
     expect(request.request.method).toBe('POST');
-    request.flush({ access: accessToken, refresh: refreshToken });
-
-    expect(service.getAccessToken()).toBe(accessToken);
-    expect(service.getRefreshToken()).toBe(refreshToken);
-    expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBe(accessToken);
-    expect(window.sessionStorage.getItem(REFRESH_TOKEN_KEY)).toBe(refreshToken);
+    expect(request.request.body).toEqual({ username: 'admin', password: 'testpass123' });
+    request.flush({ access: 'access-token', refresh: 'refresh-token' });
   });
 
-  it('stores access and refresh token after registration', () => {
-    const accessToken = buildJwt(3600);
-    const refreshToken = buildJwt(7200);
-
-    service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+  it('stores current user profile after registration', async () => {
+    const registerPromise = firstValueFrom(
+      service.register('newfan', 'StrongPass123!', 'StrongPass123!')
+    );
 
     const request = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({
-      username: 'newfan',
-      password: 'StrongPass123!',
-      password_confirm: 'StrongPass123!',
-    });
     request.flush({
-      access: accessToken,
-      refresh: refreshToken,
+      access: 'access-token',
+      refresh: 'refresh-token',
       user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
     });
 
-    expect(service.getAccessToken()).toBe(accessToken);
-    expect(service.getRefreshToken()).toBe(refreshToken);
-    expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBe(accessToken);
-    expect(window.sessionStorage.getItem(REFRESH_TOKEN_KEY)).toBe(refreshToken);
+    await expect(registerPromise).resolves.toEqual({
+      access: 'access-token',
+      refresh: 'refresh-token',
+    });
+    expect(service.getCurrentUser()).toEqual({
+      id: 1,
+      username: 'newfan',
+      is_staff: false,
+      is_superuser: false,
+    });
+    expect(window.sessionStorage.getItem(CURRENT_USER_KEY)).not.toBeNull();
+    expect(service.isAuthenticated()).toBe(true);
   });
 
-  it('loads current user profile when authenticated', async () => {
-    const accessToken = buildJwt(3600);
-    const refreshToken = buildJwt(7200);
+  it('returns cached current user without extra network call', async () => {
+    service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+    const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
+    registerRequest.flush({
+      access: 'access-token',
+      refresh: 'refresh-token',
+      user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
+    });
 
-    service.login('admin', 'testpass123').subscribe();
-    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
-    loginRequest.flush({ access: accessToken, refresh: refreshToken });
+    await expect(firstValueFrom(service.ensureCurrentUser())).resolves.toEqual({
+      id: 1,
+      username: 'newfan',
+      is_staff: false,
+      is_superuser: false,
+    });
+    httpMock.expectNone(`${API_BASE_URL}/auth/me/`);
+  });
 
+  it('loads current user profile from backend when cache is empty', async () => {
     const profilePromise = firstValueFrom(service.ensureCurrentUser());
 
     const profileRequest = httpMock.expectOne(`${API_BASE_URL}/auth/me/`);
+    expect(profileRequest.request.method).toBe('GET');
     profileRequest.flush({ id: 1, username: 'admin', is_staff: true, is_superuser: true });
 
     await expect(profilePromise).resolves.toEqual({
@@ -103,94 +94,70 @@ describe('AuthService', () => {
       is_staff: true,
       is_superuser: true,
     });
+    expect(service.isAuthenticated()).toBe(true);
     expect(service.isAdmin()).toBe(true);
   });
 
-  it('refreshes access token and keeps old refresh token if refresh response does not return new one', async () => {
-    const accessToken = buildJwt(3600);
-    const refreshToken = buildJwt(7200);
-    const refreshedAccessToken = buildJwt(3600);
-
-    service.login('admin', 'testpass123').subscribe();
-    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
-    loginRequest.flush({ access: accessToken, refresh: refreshToken });
-
-    const nextAccessTokenPromise = firstValueFrom(service.refreshAccessToken());
+  it('refreshes access token using cookie-based refresh flow', async () => {
+    const refreshPromise = firstValueFrom(service.refreshAccessToken());
 
     const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
     expect(refreshRequest.request.method).toBe('POST');
-    expect(refreshRequest.request.body).toEqual({ refresh: refreshToken });
-    refreshRequest.flush({ access: refreshedAccessToken });
+    expect(refreshRequest.request.body).toEqual({});
+    refreshRequest.flush({ access: 'new-access-token' });
 
-    const nextAccessToken = await nextAccessTokenPromise;
-
-    expect(nextAccessToken).toBe(refreshedAccessToken);
-    expect(service.getAccessToken()).toBe(refreshedAccessToken);
-    expect(service.getRefreshToken()).toBe(refreshToken);
+    await expect(refreshPromise).resolves.toBe('new-access-token');
   });
 
   it('deduplicates concurrent refresh calls into one request', async () => {
-    const accessToken = buildJwt(3600);
-    const refreshToken = buildJwt(7200);
-    const refreshedAccessToken = buildJwt(3600);
-
-    service.login('admin', 'testpass123').subscribe();
-    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
-    loginRequest.flush({ access: accessToken, refresh: refreshToken });
-
     const firstRefreshPromise = firstValueFrom(service.refreshAccessToken());
     const secondRefreshPromise = firstValueFrom(service.refreshAccessToken());
 
     const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
-    expect(refreshRequest.request.body).toEqual({ refresh: refreshToken });
-    refreshRequest.flush({ access: refreshedAccessToken });
+    refreshRequest.flush({ access: 'new-access-token' });
 
-    await expect(firstRefreshPromise).resolves.toBe(refreshedAccessToken);
-    await expect(secondRefreshPromise).resolves.toBe(refreshedAccessToken);
+    await expect(firstRefreshPromise).resolves.toBe('new-access-token');
+    await expect(secondRefreshPromise).resolves.toBe('new-access-token');
   });
 
-  it('drops expired access token from storage', () => {
-    const expiredAccessToken = buildJwt(-60);
-    const validRefreshToken = buildJwt(7200);
+  it('clears local auth state when refresh fails', async () => {
+    service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+    const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
+    registerRequest.flush({
+      access: 'access-token',
+      refresh: 'refresh-token',
+      user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
+    });
 
-    service.login('admin', 'testpass123').subscribe();
-    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
-    loginRequest.flush({ access: expiredAccessToken, refresh: validRefreshToken });
+    const refreshPromise = firstValueFrom(service.refreshAccessToken());
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
+    refreshRequest.flush({ detail: 'Refresh invalid' }, { status: 401, statusText: 'Unauthorized' });
 
-    expect(service.getAccessToken()).toBeNull();
-    expect(window.sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
-    expect(service.isAuthenticated()).toBe(true);
+    await expect(refreshPromise).rejects.toBeTruthy();
+    expect(service.getCurrentUser()).toBeNull();
+    expect(service.isAuthenticated()).toBe(false);
+    expect(window.sessionStorage.getItem(CURRENT_USER_KEY)).toBeNull();
   });
 
-  it('returns error when refresh token is missing', async () => {
-    await expect(firstValueFrom(service.refreshAccessToken())).rejects.toThrow('Missing refresh token');
-  });
-
-  it('calls backend logout and clears stored tokens', async () => {
-    const accessToken = buildJwt(3600);
-    const refreshToken = buildJwt(7200);
-
-    service.login('admin', 'testpass123').subscribe();
-    const loginRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
-    loginRequest.flush({ access: accessToken, refresh: refreshToken });
+  it('calls backend logout and clears local auth state', async () => {
+    service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+    const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
+    registerRequest.flush({
+      access: 'access-token',
+      refresh: 'refresh-token',
+      user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
+    });
 
     const logoutPromise = firstValueFrom(service.logout());
 
     const logoutRequest = httpMock.expectOne(`${API_BASE_URL}/auth/logout/`);
     expect(logoutRequest.request.method).toBe('POST');
-    expect(logoutRequest.request.body).toEqual({ refresh: refreshToken });
+    expect(logoutRequest.request.body).toEqual({});
     logoutRequest.flush(null, { status: 204, statusText: 'No Content' });
 
     await expect(logoutPromise).resolves.toBeUndefined();
-    expect(service.getAccessToken()).toBeNull();
-    expect(service.getRefreshToken()).toBeNull();
-  });
-
-  it('clears local auth state when logout is called without refresh token', async () => {
-    await expect(firstValueFrom(service.logout())).resolves.toBeUndefined();
-
-    httpMock.expectNone(`${API_BASE_URL}/auth/logout/`);
-    expect(service.getAccessToken()).toBeNull();
-    expect(service.getRefreshToken()).toBeNull();
+    expect(service.getCurrentUser()).toBeNull();
+    expect(window.sessionStorage.getItem(CURRENT_USER_KEY)).toBeNull();
+    expect(service.isAuthenticated()).toBe(false);
   });
 });

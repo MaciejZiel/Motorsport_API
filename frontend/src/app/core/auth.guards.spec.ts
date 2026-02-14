@@ -44,13 +44,23 @@ describe('Auth guards', () => {
   it('authGuard redirects unauthenticated users to login', () => {
     setupWithAuthState(false);
 
-    const result = TestBed.runInInjectionContext(() =>
+    const guardResult = TestBed.runInInjectionContext(() =>
       authGuard({} as never, { url: '/drivers' } as never)
     );
+    return resolveGuardResult(guardResult).then((result) => {
+      expect(result instanceof UrlTree).toBe(true);
+      expect((result as UrlTree).toString()).toContain('/login');
+      expect((result as UrlTree).toString()).toContain('next=%2Fdrivers');
+    });
+  });
 
-    expect(result instanceof UrlTree).toBe(true);
-    expect((result as UrlTree).toString()).toContain('/login');
-    expect((result as UrlTree).toString()).toContain('next=%2Fdrivers');
+  it('guestGuard allows unauthenticated users', async () => {
+    setupWithAuthState(false);
+
+    const guardResult = TestBed.runInInjectionContext(() => guestGuard({} as never, {} as never));
+    const result = await resolveGuardResult(guardResult);
+
+    expect(result).toBe(true);
   });
 
   it('guestGuard redirects authenticated users to home', () => {
@@ -112,12 +122,13 @@ describe('Auth guards', () => {
   it('adminGuard redirects unauthenticated users to login', () => {
     setupWithAuthState(false);
 
-    const result = TestBed.runInInjectionContext(() =>
+    const guardResult = TestBed.runInInjectionContext(() =>
       adminGuard({} as never, { url: '/admin' } as never)
     );
-
-    expect(result instanceof UrlTree).toBe(true);
-    expect((result as UrlTree).toString()).toContain('/login');
-    expect((result as UrlTree).toString()).toContain('next=%2Fadmin');
+    return resolveGuardResult(guardResult).then((result) => {
+      expect(result instanceof UrlTree).toBe(true);
+      expect((result as UrlTree).toString()).toContain('/login');
+      expect((result as UrlTree).toString()).toContain('next=%2Fadmin');
+    });
   });
 });

@@ -117,6 +117,19 @@ SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", IS_PRODUCTION)
 SECURE_CONTENT_TYPE_NOSNIFF = env_bool("DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", True)
 SECURE_REFERRER_POLICY = os.getenv("DJANGO_SECURE_REFERRER_POLICY", "same-origin")
 X_FRAME_OPTIONS = os.getenv("DJANGO_X_FRAME_OPTIONS", "DENY")
+CONTENT_SECURITY_POLICY = os.getenv(
+    "DJANGO_CONTENT_SECURITY_POLICY",
+    (
+        "default-src 'self'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'; "
+        "img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self'; "
+        "connect-src 'self'"
+    ),
+)
 USE_X_FORWARDED_HOST = env_bool("DJANGO_USE_X_FORWARDED_HOST", False)
 if env_bool("DJANGO_USE_X_FORWARDED_PROTO", IS_PRODUCTION):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -145,7 +158,7 @@ AUTH_LOGOUT_THROTTLE_RATE = os.getenv("AUTH_LOGOUT_THROTTLE_RATE", "30/minute")
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "racing.authentication.CookieJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
@@ -174,6 +187,16 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": env_bool("JWT_UPDATE_LAST_LOGIN", False),
 }
 
+JWT_AUTH_COOKIE_ACCESS = os.getenv("JWT_AUTH_COOKIE_ACCESS", "motorsport_access")
+JWT_AUTH_COOKIE_REFRESH = os.getenv("JWT_AUTH_COOKIE_REFRESH", "motorsport_refresh")
+JWT_AUTH_COOKIE_SECURE = env_bool("JWT_AUTH_COOKIE_SECURE", IS_PRODUCTION)
+JWT_AUTH_COOKIE_SAMESITE = os.getenv("JWT_AUTH_COOKIE_SAMESITE", "Lax")
+if JWT_AUTH_COOKIE_SAMESITE not in {"Lax", "Strict", "None"}:
+    JWT_AUTH_COOKIE_SAMESITE = "Lax"
+JWT_AUTH_COOKIE_DOMAIN = os.getenv("JWT_AUTH_COOKIE_DOMAIN", "")
+JWT_AUTH_COOKIE_PATH = os.getenv("JWT_AUTH_COOKIE_PATH", "/")
+JWT_AUTH_COOKIE_REFRESH_PATH = os.getenv("JWT_AUTH_COOKIE_REFRESH_PATH", "/api/v1/auth/")
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Motorsport API",
     "DESCRIPTION": "Django REST API for motorsport data (F1-style).",
@@ -184,6 +207,7 @@ SPECTACULAR_SETTINGS = {
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "racing.middleware.ContentSecurityPolicyMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

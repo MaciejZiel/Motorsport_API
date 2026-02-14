@@ -8,37 +8,29 @@ const RETRY_AFTER_REFRESH = new HttpContextToken<boolean>(() => false);
 
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
-  const accessToken = auth.getAccessToken();
   const isRegisterEndpoint = request.url === `${API_BASE_URL}/auth/register/`;
   const isTokenEndpoint = request.url === `${API_BASE_URL}/auth/token/`;
   const isRefreshEndpoint = request.url === `${API_BASE_URL}/auth/token/refresh/`;
-  const isAuthEndpoint = isRegisterEndpoint || isTokenEndpoint || isRefreshEndpoint;
+  const isLogoutEndpoint = request.url === `${API_BASE_URL}/auth/logout/`;
+  const isAuthEndpoint = isRegisterEndpoint || isTokenEndpoint || isRefreshEndpoint || isLogoutEndpoint;
 
-  const requestWithAccess = accessToken && !isAuthEndpoint
-    ? request.clone({
-        setHeaders: { Authorization: `Bearer ${accessToken}` },
-      })
-    : request;
-
-  return next(requestWithAccess).pipe(
+  return next(request).pipe(
     catchError((error: unknown) => {
       const shouldTryRefresh =
         error instanceof HttpErrorResponse &&
         error.status === 401 &&
         !isAuthEndpoint &&
-        !request.context.get(RETRY_AFTER_REFRESH) &&
-        Boolean(auth.getRefreshToken());
+        !request.context.get(RETRY_AFTER_REFRESH);
 
       if (!shouldTryRefresh) {
         return throwError(() => error);
       }
 
       return auth.refreshAccessToken().pipe(
-        switchMap((newAccessToken) =>
+        switchMap(() =>
           next(
             request.clone({
               context: request.context.set(RETRY_AFTER_REFRESH, true),
-              setHeaders: { Authorization: `Bearer ${newAccessToken}` },
             })
           )
         )

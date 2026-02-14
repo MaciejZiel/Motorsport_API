@@ -11,7 +11,11 @@ export const authGuard: CanActivateFn = (_route, state) => {
     return true;
   }
 
-  return router.createUrlTree(['/login'], { queryParams: { next: state.url } });
+  return auth.ensureCurrentUser().pipe(
+    map((user) =>
+      user ? true : router.createUrlTree(['/login'], { queryParams: { next: state.url } })
+    )
+  );
 };
 
 export const guestGuard: CanActivateFn = () => {
@@ -22,19 +26,18 @@ export const guestGuard: CanActivateFn = () => {
     return router.createUrlTree(['/']);
   }
 
-  return true;
+  return auth.ensureCurrentUser().pipe(map((user) => (user ? router.createUrlTree(['/']) : true)));
 };
 
 export const adminGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  if (!auth.isAuthenticated()) {
-    return router.createUrlTree(['/login'], { queryParams: { next: state.url } });
-  }
-
   return auth.ensureCurrentUser().pipe(
     map((user) => {
+      if (!user) {
+        return router.createUrlTree(['/login'], { queryParams: { next: state.url } });
+      }
       if (user?.is_staff || user?.is_superuser) {
         return true;
       }

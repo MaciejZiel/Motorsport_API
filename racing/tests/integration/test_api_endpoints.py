@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.urls import reverse
@@ -56,6 +57,8 @@ class MotorsportApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client.cookies.pop(settings.JWT_AUTH_COOKIE_ACCESS, None)
+        self.client.cookies.pop(settings.JWT_AUTH_COOKIE_REFRESH, None)
         return response.data["access"]
 
     def test_public_can_list_drivers(self):
@@ -78,6 +81,7 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(response.data["service"], "motorsport-api")
         self.assertTrue(response.data["database"])
+        self.assertIn("Content-Security-Policy", response)
 
     def test_standings_are_sorted_descending(self):
         response = self.client.get(reverse("api-v1:driver-standings"))
@@ -174,9 +178,51 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
         self.assertIn("access", refresh_response.data)
 
+    def test_login_sets_http_only_auth_cookies(self):
+        response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        access_cookie = response.cookies.get(settings.JWT_AUTH_COOKIE_ACCESS)
+        refresh_cookie = response.cookies.get(settings.JWT_AUTH_COOKIE_REFRESH)
+        self.assertIsNotNone(access_cookie)
+        self.assertIsNotNone(refresh_cookie)
+        self.assertTrue(access_cookie["httponly"])
+        self.assertTrue(refresh_cookie["httponly"])
+        self.assertEqual(refresh_cookie["path"], settings.JWT_AUTH_COOKIE_REFRESH_PATH)
+
+    def test_token_refresh_uses_refresh_cookie_when_body_missing(self):
+        login_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        refresh_response = self.client.post(reverse("api-v1:token_refresh"), {}, format="json")
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", refresh_response.data)
+        self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, refresh_response.cookies)
+
     def test_auth_me_requires_authentication(self):
         response = self.client.get(reverse("api-v1:auth_me"))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_auth_me_accepts_access_cookie_authentication(self):
+        login_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        self.client.credentials()
+        response = self.client.get(reverse("api-v1:auth_me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "admin")
 
     def test_auth_me_returns_current_user_profile(self):
         token = self._token_for("admin", "testpass123")
@@ -210,6 +256,22 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(refresh_response.data["error"], "unauthorized")
 
+    def test_logout_accepts_refresh_cookie_and_clears_auth_cookies(self):
+        token_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+
+        logout_response = self.client.post(reverse("api-v1:logout"), {}, format="json")
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, logout_response.cookies)
+        self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, logout_response.cookies)
+
+        refresh_response = self.client.post(reverse("api-v1:token_refresh"), {}, format="json")
+        self.assertEqual(refresh_response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_logout_requires_refresh_token(self):
         token = self._token_for("admin", "testpass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -241,6 +303,8 @@ class MotorsportApiTests(APITestCase):
         self.assertFalse(response.data["user"]["is_staff"])
         self.assertIn("is_superuser", response.data["user"])
         self.assertFalse(response.data["user"]["is_superuser"])
+        self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, response.cookies)
+        self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, response.cookies)
         User = get_user_model()
         self.assertTrue(User.objects.filter(username="newfan").exists())
 

@@ -149,9 +149,12 @@ python manage.py check --deploy
 
 ## Auth security hardening
 - Refresh token blacklisting is enabled (SimpleJWT blacklist app).
-- `POST /api/v1/auth/logout/` invalidates the submitted refresh token.
+- Login/register/refresh set JWT in `HttpOnly` cookies (`access` + `refresh`).
+- API accepts JWT from Bearer header (backward compatible) and secure auth cookies.
+- `POST /api/v1/auth/logout/` invalidates refresh token (from body or cookie) and clears auth cookies.
 - Global API throttling is enabled for anonymous and authenticated clients.
 - Auth endpoints (`login`, `refresh`, `register`, `logout`) use dedicated throttle scopes.
+- Baseline Content Security Policy header is enabled by default (`DJANGO_CONTENT_SECURITY_POLICY`).
 
 ## Tests
 ```bash

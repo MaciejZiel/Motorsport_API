@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import DatabaseError, connection
 from django.db.models import Count, Max, Q, Sum
 from rest_framework import status, viewsets
@@ -7,11 +8,12 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 
+from .auth_cookies import clear_auth_cookies, set_auth_cookies
 from .models import Driver, Race, RaceResult, Season, Team
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
@@ -209,7 +211,7 @@ class RegisterView(APIView):
         user = serializer.save()
 
         refresh = RefreshToken.for_user(user)
-        return Response(
+        response = Response(
             {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
@@ -222,6 +224,8 @@ class RegisterView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        return response
 
 
 class LoginView(TokenObtainPairView):
@@ -230,12 +234,41 @@ class LoginView(TokenObtainPairView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_login"
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            access = response.data.get("access")
+            refresh = response.data.get("refresh")
+            if isinstance(access, str) and isinstance(refresh, str):
+                set_auth_cookies(response, access, refresh)
+        return response
+
 
 class TokenRefreshScopedView(TokenRefreshView):
     permission_classes = [AllowAny]
     authentication_classes = []
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_refresh"
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.data.get("refresh")
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
+            refresh_token = request.COOKIES.get(settings.JWT_AUTH_COOKIE_REFRESH, "")
+
+        serializer = self.get_serializer(data={"refresh": refresh_token})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as exc:
+            raise InvalidToken(exc.args[0]) from exc
+
+        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        access = serializer.validated_data.get("access")
+        refresh = serializer.validated_data.get("refresh")
+        if isinstance(access, str):
+            effective_refresh = refresh if isinstance(refresh, str) else refresh_token
+            if isinstance(effective_refresh, str) and effective_refresh.strip():
+                set_auth_cookies(response, access, effective_refresh)
+        return response
 
 
 class AuthMeView(APIView):
@@ -269,6 +302,9 @@ class LogoutView(APIView):
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not isinstance(refresh_token, str) or not refresh_token.strip():
+            refresh_token = request.COOKIES.get(settings.JWT_AUTH_COOKIE_REFRESH)
+
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
             raise ValidationError({"refresh": ["This field is required."]})
 
         try:
@@ -277,7 +313,9 @@ class LogoutView(APIView):
         except TokenError as exc:
             raise ValidationError({"refresh": ["Invalid or expired refresh token."]}) from exc
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        clear_auth_cookies(response)
+        return response
 
 
 @extend_schema(
