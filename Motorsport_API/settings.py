@@ -5,6 +5,8 @@ from datetime import timedelta
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -66,10 +68,31 @@ def get_database_config() -> dict:
     }
 
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-only-key-change-me")
-DEBUG = env_bool("DJANGO_DEBUG", True)
 DJANGO_ENV = os.getenv("DJANGO_ENV", "development").lower()
 IS_PRODUCTION = DJANGO_ENV in {"production", "prod"}
+DEV_FALLBACK_SECRET_KEY = "django-insecure-dev-only-key-change-me"
+
+
+def is_weak_secret_key(secret_key: str) -> bool:
+    return (
+        len(secret_key) < 50
+        or len(set(secret_key)) < 5
+        or secret_key.startswith("django-insecure-")
+    )
+
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DJANGO_ENV=production.")
+    SECRET_KEY = DEV_FALLBACK_SECRET_KEY
+elif IS_PRODUCTION and is_weak_secret_key(SECRET_KEY):
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY is too weak for production.")
+
+DEBUG = env_bool("DJANGO_DEBUG", not IS_PRODUCTION)
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured("DJANGO_DEBUG must be False when DJANGO_ENV=production.")
+
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", False)
