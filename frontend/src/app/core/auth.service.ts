@@ -1,6 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, finalize, map, of, shareReplay, tap, throwError } from 'rxjs';
+import {
+  Observable,
+  catchError,
+  finalize,
+  map,
+  of,
+  shareReplay,
+  switchMap,
+  tap,
+  throwError,
+} from 'rxjs';
 import { API_BASE_URL } from '../api.config';
 import { AuthUser, RegisterResponse, TokenPair } from './auth.types';
 
@@ -10,6 +20,7 @@ const CURRENT_USER_KEY = 'motorsport_current_user';
 export class AuthService {
   private readonly http = inject(HttpClient);
   private refreshInFlight$: Observable<string> | null = null;
+  private csrfInFlight$: Observable<void> | null = null;
 
   private readonly currentUser = signal<AuthUser | null>(this.readUserStorage());
 
@@ -19,25 +30,30 @@ export class AuthService {
   );
 
   login(username: string, password: string): Observable<TokenPair> {
-    return this.http.post<TokenPair>(`${API_BASE_URL}/auth/token/`, { username, password });
+    return this.ensureCsrfToken().pipe(
+      switchMap(() =>
+        this.http.post<TokenPair>(`${API_BASE_URL}/auth/token/`, { username, password })
+      )
+    );
   }
 
   register(username: string, password: string, passwordConfirm: string): Observable<TokenPair> {
-    return this.http
-      .post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, {
-        username,
-        password,
-        password_confirm: passwordConfirm,
-      })
-      .pipe(
-        tap((response) => {
-          this.setCurrentUser(response.user);
-        }),
-        map((response) => ({
-          access: response.access,
-          refresh: response.refresh,
-        }))
-      );
+    return this.ensureCsrfToken().pipe(
+      switchMap(() =>
+        this.http.post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, {
+          username,
+          password,
+          password_confirm: passwordConfirm,
+        })
+      ),
+      tap((response) => {
+        this.setCurrentUser(response.user);
+      }),
+      map((response) => ({
+        access: response.access,
+        refresh: response.refresh,
+      }))
+    );
   }
 
   refreshAccessToken(): Observable<string> {
@@ -63,11 +79,29 @@ export class AuthService {
   }
 
   logout(): Observable<void> {
-    return this.http.post<void>(`${API_BASE_URL}/auth/logout/`, {}).pipe(
+    return this.ensureCsrfToken().pipe(
+      switchMap(() => this.http.post<void>(`${API_BASE_URL}/auth/logout/`, {})),
       catchError(() => of(void 0)),
       tap(() => this.clearAuthState()),
       map(() => void 0)
     );
+  }
+
+  ensureCsrfToken(): Observable<void> {
+    if (this.csrfInFlight$) {
+      return this.csrfInFlight$;
+    }
+
+    this.csrfInFlight$ = this.http.get<{ csrfToken: string }>(`${API_BASE_URL}/auth/csrf/`).pipe(
+      map(() => void 0),
+      catchError(() => of(void 0)),
+      finalize(() => {
+        this.csrfInFlight$ = null;
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+
+    return this.csrfInFlight$;
   }
 
   ensureCurrentUser(): Observable<AuthUser | null> {

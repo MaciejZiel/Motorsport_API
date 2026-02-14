@@ -15,6 +15,19 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: .
@@ -30,6 +43,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      DJANGO_CACHE_URL: ${DJANGO_CACHE_URL:-redis://redis:6379/1}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,api}
       DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
       DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
@@ -47,6 +61,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:
@@ -62,3 +78,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

@@ -6,10 +6,10 @@ from django.core.cache import cache
 from django.urls import reverse
 from django.test import override_settings
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from racing.models import Driver, Race, RaceResult, Season, Team
-from racing.views import LoginView, LogoutView, RegisterView, TokenRefreshScopedView
+from racing.views import CsrfTokenView, LoginView, LogoutView, RegisterView, TokenRefreshScopedView
 
 
 class MotorsportApiTests(APITestCase):
@@ -82,6 +82,7 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(response.data["service"], "motorsport-api")
         self.assertTrue(response.data["database"])
         self.assertIn("Content-Security-Policy", response)
+        self.assertIn("X-Request-ID", response)
 
     def test_standings_are_sorted_descending(self):
         response = self.client.get(reverse("api-v1:driver-standings"))
@@ -207,6 +208,12 @@ class MotorsportApiTests(APITestCase):
         self.assertIn("access", refresh_response.data)
         self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, refresh_response.cookies)
 
+    def test_csrf_endpoint_sets_cookie(self):
+        response = self.client.get(reverse("api-v1:csrf_token"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("csrfToken", response.data)
+        self.assertIn(settings.CSRF_COOKIE_NAME, response.cookies)
+
     def test_auth_me_requires_authentication(self):
         response = self.client.get(reverse("api-v1:auth_me"))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -264,13 +271,35 @@ class MotorsportApiTests(APITestCase):
         )
         self.assertEqual(token_response.status_code, status.HTTP_200_OK)
 
-        logout_response = self.client.post(reverse("api-v1:logout"), {}, format="json")
+        csrf_response = self.client.get(reverse("api-v1:csrf_token"))
+        csrf_token = csrf_response.data["csrfToken"]
+
+        logout_response = self.client.post(
+            reverse("api-v1:logout"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
         self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, logout_response.cookies)
         self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, logout_response.cookies)
 
         refresh_response = self.client.post(reverse("api-v1:token_refresh"), {}, format="json")
         self.assertEqual(refresh_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_logout_with_cookie_auth_requires_csrf_token(self):
+        csrf_client = APIClient(enforce_csrf_checks=True)
+
+        token_response = csrf_client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+
+        response = csrf_client.post(reverse("api-v1:logout"), {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["error"], "forbidden")
 
     def test_logout_requires_refresh_token(self):
         token = self._token_for("admin", "testpass123")
@@ -287,6 +316,7 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(TokenRefreshScopedView.throttle_scope, "auth_refresh")
         self.assertEqual(RegisterView.throttle_scope, "auth_register")
         self.assertEqual(LogoutView.throttle_scope, "auth_logout")
+        self.assertEqual(CsrfTokenView.throttle_scope, "auth_csrf")
 
     def test_register_creates_user_and_returns_tokens(self):
         payload = {

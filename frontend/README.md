@@ -65,10 +65,10 @@ to blacklist the current refresh token server-side.
 
 ## Protected routes and auth flow
 
-- Routes `/drivers`, `/drivers/:id`, `/teams`, `/teams/:id`, `/races`, `/races/:id` require login.
 - Route `/admin` requires staff/superuser role.
 - Logged-out user is redirected to `/login?next=...`.
 - Logged-in user opening `/login` is redirected to `/`.
+- Frontend bootstraps CSRF with `GET /api/v1/auth/csrf/` and sends `X-CSRFToken` on unsafe requests.
 - Frontend uses `GET /api/v1/auth/me/` to resolve current user role and admin access.
 - On API `401`, frontend triggers cookie-based refresh (`POST /api/v1/auth/token/refresh/`) and retries the failed request once.
 
@@ -76,12 +76,16 @@ to blacklist the current refresh token server-side.
 
 - Top-right theme toggle switches between light and dark mode.
 - Theme selection is persisted in browser localStorage.
+- Optional URL override `?theme=light|dark` can force initial theme for preview/demo.
 - List pages (`/drivers`, `/teams`, `/races`) support filters + pagination synced with URL query params.
 - List pages include loading, error, and empty states with retry actions.
 
 ## Build and test
 
 ```bash
+npm --prefix frontend run lint
 npm --prefix frontend run build
 npm --prefix frontend run test
+npm --prefix frontend run test:ci
+npm --prefix frontend run coverage:check
 ```

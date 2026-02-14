@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AuthMeView,
+    CsrfTokenView,
     DriverViewSet,
     LoginView,
     LogoutView,
@@ -25,6 +26,7 @@ router.register("races", RaceViewSet, basename="race")
 router.register("results", RaceResultViewSet, basename="result")
 
 urlpatterns = [
+    path("auth/csrf/", CsrfTokenView.as_view(), name="csrf_token"),
     path("auth/me/", AuthMeView.as_view(), name="auth_me"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("auth/register/", RegisterView.as_view(), name="register"),

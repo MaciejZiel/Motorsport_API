@@ -6,6 +6,11 @@ import { App } from './app';
 import { AuthService } from './core/auth.service';
 
 describe('App', () => {
+  afterEach(() => {
+    window.history.pushState({}, '', '/');
+    window.localStorage.removeItem('motorsport_theme');
+  });
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
@@ -24,5 +29,14 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.brand-title')?.textContent).toContain('Motorsport Control Center');
+  });
+
+  it('should honor theme query parameter override', () => {
+    window.history.pushState({}, '', '/?theme=dark');
+
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    expect(app.theme()).toBe('dark');
   });
 });

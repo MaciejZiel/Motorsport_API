@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import DatabaseError, connection
 from django.db.models import Count, Max, Q, Sum
+from django.middleware.csrf import get_token
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -20,6 +21,7 @@ from .serializers import (
     ApiStatsSerializer,
     AuthMeSerializer,
     ConstructorSeasonStandingsResponseSerializer,
+    CsrfTokenSerializer,
     DetailMessageSerializer,
     DriverSeasonStandingsResponseSerializer,
     DriverSerializer,
@@ -287,6 +289,18 @@ class AuthMeView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class CsrfTokenView(APIView):
+    serializer_class = CsrfTokenSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_csrf"
+
+    @extend_schema(responses={200: CsrfTokenSerializer})
+    def get(self, request):
+        return Response({"csrfToken": get_token(request)}, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):

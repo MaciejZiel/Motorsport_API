@@ -27,9 +27,16 @@ describe('AuthService', () => {
     window.sessionStorage.clear();
   });
 
+  const flushCsrfRequest = (): void => {
+    const csrfRequest = httpMock.expectOne(`${API_BASE_URL}/auth/csrf/`);
+    expect(csrfRequest.request.method).toBe('GET');
+    csrfRequest.flush({ csrfToken: 'csrf-token' });
+  };
+
   it('posts credentials to login endpoint', () => {
     service.login('admin', 'testpass123').subscribe();
 
+    flushCsrfRequest();
     const request = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ username: 'admin', password: 'testpass123' });
@@ -41,6 +48,7 @@ describe('AuthService', () => {
       service.register('newfan', 'StrongPass123!', 'StrongPass123!')
     );
 
+    flushCsrfRequest();
     const request = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     expect(request.request.method).toBe('POST');
     request.flush({
@@ -65,6 +73,7 @@ describe('AuthService', () => {
 
   it('returns cached current user without extra network call', async () => {
     service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+    flushCsrfRequest();
     const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     registerRequest.flush({
       access: 'access-token',
@@ -122,6 +131,7 @@ describe('AuthService', () => {
 
   it('clears local auth state when refresh fails', async () => {
     service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+    flushCsrfRequest();
     const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     registerRequest.flush({
       access: 'access-token',
@@ -141,6 +151,7 @@ describe('AuthService', () => {
 
   it('calls backend logout and clears local auth state', async () => {
     service.register('newfan', 'StrongPass123!', 'StrongPass123!').subscribe();
+    flushCsrfRequest();
     const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     registerRequest.flush({
       access: 'access-token',
@@ -150,6 +161,7 @@ describe('AuthService', () => {
 
     const logoutPromise = firstValueFrom(service.logout());
 
+    flushCsrfRequest();
     const logoutRequest = httpMock.expectOne(`${API_BASE_URL}/auth/logout/`);
     expect(logoutRequest.request.method).toBe('POST');
     expect(logoutRequest.request.body).toEqual({});

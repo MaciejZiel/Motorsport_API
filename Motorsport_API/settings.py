@@ -154,6 +154,7 @@ AUTH_LOGIN_THROTTLE_RATE = os.getenv("AUTH_LOGIN_THROTTLE_RATE", "20/minute")
 AUTH_REFRESH_THROTTLE_RATE = os.getenv("AUTH_REFRESH_THROTTLE_RATE", "30/minute")
 AUTH_REGISTER_THROTTLE_RATE = os.getenv("AUTH_REGISTER_THROTTLE_RATE", "10/minute")
 AUTH_LOGOUT_THROTTLE_RATE = os.getenv("AUTH_LOGOUT_THROTTLE_RATE", "30/minute")
+AUTH_CSRF_THROTTLE_RATE = os.getenv("AUTH_CSRF_THROTTLE_RATE", "120/minute")
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -173,6 +174,7 @@ REST_FRAMEWORK = {
         "auth_refresh": AUTH_REFRESH_THROTTLE_RATE,
         "auth_register": AUTH_REGISTER_THROTTLE_RATE,
         "auth_logout": AUTH_LOGOUT_THROTTLE_RATE,
+        "auth_csrf": AUTH_CSRF_THROTTLE_RATE,
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
@@ -206,6 +208,7 @@ SPECTACULAR_SETTINGS = {
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "racing.middleware.RequestIdMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "racing.middleware.ContentSecurityPolicyMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -238,6 +241,24 @@ WSGI_APPLICATION = "Motorsport_API.wsgi.application"
 
 DATABASES = {"default": get_database_config()}
 
+CACHE_URL = os.getenv("DJANGO_CACHE_URL", "").strip()
+if CACHE_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": CACHE_URL,
+            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+            "KEY_PREFIX": os.getenv("DJANGO_CACHE_KEY_PREFIX", "motorsport_api"),
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "motorsport-api-cache",
+        }
+    }
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -267,18 +288,24 @@ LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO").upper()
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "request_id": {
+            "()": "racing.request_context.RequestIdFilter",
+        },
+    },
     "formatters": {
         "verbose": {
-            "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+            "format": "%(asctime)s %(levelname)s [%(name)s] [request_id=%(request_id)s] %(message)s",
         },
         "simple": {
-            "format": "%(levelname)s %(name)s %(message)s",
+            "format": "%(levelname)s [%(name)s] [request_id=%(request_id)s] %(message)s",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            "filters": ["request_id"],
         },
     },
     "root": {

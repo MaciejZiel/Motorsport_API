@@ -1,9 +1,14 @@
 from django.conf import settings
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class CookieJWTAuthentication(JWTAuthentication):
     """Read JWT from Authorization header first, then from HttpOnly cookie."""
+
+    def enforce_csrf(self, request) -> None:
+        SessionAuthentication().enforce_csrf(request)
 
     def authenticate(self, request):
         header = self.get_header(request)
@@ -17,6 +22,8 @@ class CookieJWTAuthentication(JWTAuthentication):
         if not cookie_token:
             return None
 
+        if request.method not in SAFE_METHODS:
+            self.enforce_csrf(request)
+
         validated_token = self.get_validated_token(cookie_token)
         return self.get_user(validated_token), validated_token
-

@@ -34,13 +34,14 @@ export class App {
   readonly navLinks: NavLink[] = [
     { path: '/', label: 'Dashboard' },
     { path: '/admin', label: 'Admin', requiresAuth: true, requiresAdmin: true },
-    { path: '/drivers', label: 'Drivers', requiresAuth: true },
-    { path: '/teams', label: 'Teams', requiresAuth: true },
-    { path: '/races', label: 'Races', requiresAuth: true },
+    { path: '/drivers', label: 'Drivers' },
+    { path: '/teams', label: 'Teams' },
+    { path: '/races', label: 'Races' },
   ];
 
   constructor() {
     this.applyTheme(this.theme());
+    this.auth.ensureCsrfToken().subscribe();
     this.auth.ensureCurrentUser().subscribe();
   }
 
@@ -59,6 +60,11 @@ export class App {
   private resolveInitialTheme(): ThemeMode {
     if (typeof window === 'undefined') {
       return 'light';
+    }
+
+    const requestedTheme = new URLSearchParams(window.location.search).get('theme');
+    if (requestedTheme === 'light' || requestedTheme === 'dark') {
+      return requestedTheme;
     }
 
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);

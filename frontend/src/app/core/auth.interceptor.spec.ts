@@ -51,6 +51,16 @@ describe('authTokenInterceptor', () => {
     await expect(responsePromise).rejects.toBeInstanceOf(HttpErrorResponse);
   });
 
+  it('does not refresh token for csrf bootstrap endpoint', async () => {
+    const responsePromise = firstValueFrom(http.get(`${API_BASE_URL}/auth/csrf/`));
+
+    const request = httpMock.expectOne(`${API_BASE_URL}/auth/csrf/`);
+    request.flush({ detail: 'Unavailable' }, { status: 401, statusText: 'Unauthorized' });
+
+    httpMock.expectNone(`${API_BASE_URL}/auth/token/refresh/`);
+    await expect(responsePromise).rejects.toBeInstanceOf(HttpErrorResponse);
+  });
+
   it('refreshes token on 401 and retries original request once', async () => {
     const responsePromise = firstValueFrom(http.get<{ ok: boolean }>(`${API_BASE_URL}/drivers/`));
 
@@ -103,4 +113,3 @@ describe('authTokenInterceptor', () => {
     await expect(responsePromise).rejects.toBeInstanceOf(HttpErrorResponse);
   });
 });
-

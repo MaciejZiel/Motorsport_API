@@ -6,9 +6,12 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - Relational modeling across `Team`, `Driver`, `Season`, `Race`, `RaceResult`
 - Versioned API (`/api/v1/`) with standings and analytics endpoints
 - JWT auth + admin-only write access
+- CSRF hardening for cookie-based auth flows
 - Filtering, pagination, OpenAPI docs (Swagger/ReDoc)
 - Structured API error handling and application logging
+- Request tracing with `X-Request-ID` propagation in responses and logs
 - PostgreSQL-ready config with SQLite fallback
+- Redis-ready shared cache for throttling consistency
 - Environment-based production security settings (HTTPS, HSTS, secure cookies)
 - Unit + integration automated tests
 - Dockerized local setup (`docker compose up --build`)
@@ -21,6 +24,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - gunicorn
 - SQLite (default dev)
 - PostgreSQL (production-like setup)
+- Redis (shared cache / throttling)
 - Docker + Docker Compose
 
 ## Main endpoints
@@ -34,6 +38,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `GET /api/v1/stats/`
 - `GET /api/health/`
 - `GET /api/v1/auth/me/`
+- `GET /api/v1/auth/csrf/`
 - `POST /api/v1/auth/logout/`
 - `POST /api/v1/auth/register/`
 - `POST /api/v1/auth/token/`
@@ -55,6 +60,12 @@ python manage.py migrate
 python manage.py createsuperuser
 python manage.py seed_motorsport
 python manage.py runserver
+```
+
+For reproducible environments (CI/CD and containers), install pinned dependencies from `requirements.lock`:
+
+```bash
+pip install -r requirements.lock
 ```
 
 ## PostgreSQL mode (local)
@@ -87,7 +98,7 @@ docker compose up --build
 # docker-compose up --build
 ```
 
-Compose starts three services: `db` (PostgreSQL), `api` (Django + gunicorn), and `frontend` (Nginx serving built Angular app).
+Compose starts four services: `db` (PostgreSQL), `redis` (shared cache), `api` (Django + gunicorn), and `frontend` (Nginx serving built Angular app).
 
 - Frontend: `http://127.0.0.1:4200`
 - Backend API: `http://127.0.0.1:8000`
@@ -149,12 +160,32 @@ python manage.py check --deploy
 
 ## Auth security hardening
 - Refresh token blacklisting is enabled (SimpleJWT blacklist app).
+- `GET /api/v1/auth/csrf/` issues CSRF token cookie for SPA cookie-auth flows.
 - Login/register/refresh set JWT in `HttpOnly` cookies (`access` + `refresh`).
 - API accepts JWT from Bearer header (backward compatible) and secure auth cookies.
 - `POST /api/v1/auth/logout/` invalidates refresh token (from body or cookie) and clears auth cookies.
+- Unsafe cookie-authenticated requests require CSRF header (`X-CSRFToken`).
 - Global API throttling is enabled for anonymous and authenticated clients.
 - Auth endpoints (`login`, `refresh`, `register`, `logout`) use dedicated throttle scopes.
 - Baseline Content Security Policy header is enabled by default (`DJANGO_CONTENT_SECURITY_POLICY`).
+
+## Observability
+- Every response includes `X-Request-ID`.
+- Request-completion logs include request ID, path, method, status, and duration.
+- Logs are formatted with request ID for cross-service traceability.
+
+## UI screenshots
+![Login page](docs/screenshots/login.png)
+*Login view with cookie-based auth flow.*
+
+![Dashboard page](docs/screenshots/dashboard.png)
+*Dashboard with API stats and standings widgets.*
+
+![Drivers list page](docs/screenshots/drivers-list.png)
+*Drivers list with filters and pagination.*
+
+![Dark mode dashboard](docs/screenshots/dashboard-dark.png)
+*Dark theme variant of the dashboard (`?theme=dark`).*
 
 ## Tests
 ```bash
@@ -162,6 +193,10 @@ pytest
 pytest racing/tests/unit
 pytest racing/tests/integration
 pytest --cov=Motorsport_API --cov=racing --cov-config=.coveragerc --cov-report=term-missing
+npm --prefix frontend run lint
+npm --prefix frontend run test:ci
+npm --prefix frontend run coverage:check
+bash scripts/e2e_compose_smoke.sh
 ```
 
 ## Frontend (Angular)

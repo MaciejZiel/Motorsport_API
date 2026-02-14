@@ -62,6 +62,10 @@ class AuthMeSerializer(serializers.Serializer):
     is_superuser = serializers.BooleanField()
 
 
+class CsrfTokenSerializer(serializers.Serializer):
+    csrfToken = serializers.CharField()
+
+
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
