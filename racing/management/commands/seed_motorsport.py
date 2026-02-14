@@ -2,7 +2,6 @@ from datetime import date
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Sum
 
 from racing.models import Driver, Race, RaceResult, Season, Team
 
@@ -108,9 +107,6 @@ class Command(BaseCommand):
                     },
                 )
 
-        for driver in Driver.objects.all():
-            total_points = driver.race_results.aggregate(total=Sum("points_earned"))["total"] or 0
-            driver.points = total_points
-            driver.save(update_fields=["points"])
+        Driver.recalculate_points_for_ids(Driver.objects.values_list("id", flat=True))
 
         self.stdout.write(self.style.SUCCESS("Sample motorsport data seeded successfully."))

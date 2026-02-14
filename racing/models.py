@@ -1,4 +1,7 @@
+from collections.abc import Iterable
+
 from django.db import models
+from django.db.models import Sum
 
 
 class Team(models.Model):
@@ -25,6 +28,24 @@ class Driver(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.team})"
+
+    @classmethod
+    def recalculate_points_for_ids(cls, driver_ids: Iterable[int]) -> dict[int, int]:
+        normalized_ids = sorted({int(driver_id) for driver_id in driver_ids if driver_id})
+        if not normalized_ids:
+            return {}
+
+        totals = {
+            row["id"]: row["total_points"] or 0
+            for row in cls.objects.filter(id__in=normalized_ids)
+            .annotate(total_points=Sum("race_results__points_earned"))
+            .values("id", "total_points")
+        }
+
+        for driver_id in normalized_ids:
+            cls.objects.filter(id=driver_id).update(points=totals.get(driver_id, 0))
+
+        return {driver_id: totals.get(driver_id, 0) for driver_id in normalized_ids}
 
 
 class Season(models.Model):
@@ -71,3 +92,23 @@ class RaceResult(models.Model):
 
     def __str__(self):
         return f"{self.race} - P{self.position}: {self.driver.name}"
+
+    def save(self, *args, **kwargs):
+        previous_driver_id = None
+        if self.pk:
+            previous_driver_id = (
+                type(self).objects.filter(pk=self.pk).values_list("driver_id", flat=True).first()
+            )
+
+        super().save(*args, **kwargs)
+
+        affected_driver_ids = {self.driver_id}
+        if previous_driver_id and previous_driver_id != self.driver_id:
+            affected_driver_ids.add(previous_driver_id)
+
+        Driver.recalculate_points_for_ids(affected_driver_ids)
+
+    def delete(self, *args, **kwargs):
+        affected_driver_id = self.driver_id
+        super().delete(*args, **kwargs)
+        Driver.recalculate_points_for_ids([affected_driver_id])
