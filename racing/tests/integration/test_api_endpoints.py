@@ -84,6 +84,18 @@ class MotorsportApiTests(APITestCase):
         self.assertIn("Content-Security-Policy", response)
         self.assertIn("X-Request-ID", response)
 
+    def test_metrics_endpoint_exposes_prometheus_payload(self):
+        self.client.get(reverse("api-health"))
+
+        response = self.client.get(reverse("api-metrics"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response["Content-Type"].startswith("text/plain"))
+        payload = response.content.decode("utf-8")
+        self.assertIn("motorsport_http_requests_total", payload)
+        self.assertIn("motorsport_http_request_duration_ms_sum", payload)
+        self.assertIn("motorsport_http_inflight_requests", payload)
+        self.assertIn('path="/api/health/"', payload)
+
     def test_standings_are_sorted_descending(self):
         response = self.client.get(reverse("api-v1:driver-standings"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)

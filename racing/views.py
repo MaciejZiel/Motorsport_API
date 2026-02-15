@@ -1,9 +1,10 @@
 from django.conf import settings
 from django.db import DatabaseError, connection
 from django.db.models import Count, Max, Q, Sum
+from django.http import HttpResponse
 from django.middleware.csrf import get_token
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.exceptions import ValidationError
@@ -15,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 
 from .auth_cookies import clear_auth_cookies, set_auth_cookies
+from .metrics import render_metrics
 from .models import Driver, Race, RaceResult, Season, Team
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
@@ -439,6 +441,17 @@ def health_check(request):
     }
     response_status = status.HTTP_200_OK if database_ok else status.HTTP_503_SERVICE_UNAVAILABLE
     return Response(payload, status=response_status)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@throttle_classes([])
+def metrics_export(request):
+    return HttpResponse(
+        render_metrics(),
+        content_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 @extend_schema(responses={200: ApiStatsSerializer})

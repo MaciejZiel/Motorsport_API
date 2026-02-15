@@ -1,0 +1,39 @@
+groups:
+  - name: motorsport-api-alerts
+    rules:
+      - alert: MotorsportApiUnavailable
+        expr: up{job="motorsport_api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Motorsport API is unavailable"
+          description: "Prometheus cannot scrape api:8000 for at least 2 minutes."
+
+      - alert: MotorsportApiHigh5xxRate
+        expr: |
+          (
+            sum(rate(motorsport_http_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(motorsport_http_requests_total[5m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate on Motorsport API"
+          description: "5xx responses are above 5% of traffic for 10 minutes."
+
+      - alert: MotorsportApiHighLatency
+        expr: |
+          (
+            sum(rate(motorsport_http_request_duration_ms_sum[5m]))
+            /
+            clamp_min(sum(rate(motorsport_http_request_duration_ms_count[5m])), 1)
+          ) > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency on Motorsport API"
+          description: "Average request latency is above 500 ms for 10 minutes."

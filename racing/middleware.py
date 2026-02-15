@@ -4,6 +4,7 @@ import uuid
 
 from django.conf import settings
 
+from .metrics import decrement_inflight_requests, increment_inflight_requests, observe_request
 from .request_context import reset_request_id, set_request_id
 
 request_logger = logging.getLogger("racing.request")
@@ -21,31 +22,35 @@ class RequestIdMiddleware:
         request.request_id = request_id
         token = set_request_id(request_id)
         started_at = time.perf_counter()
+        increment_inflight_requests()
 
         try:
             response = self.get_response(request)
         except Exception:
             duration_ms = int((time.perf_counter() - started_at) * 1000)
+            observe_request(request.method, request.path, 500, duration_ms)
             request_logger.exception(
                 "request_failed method=%s path=%s duration_ms=%s",
                 request.method,
                 request.get_full_path(),
                 duration_ms,
             )
-            reset_request_id(token)
             raise
-
-        duration_ms = int((time.perf_counter() - started_at) * 1000)
-        response["X-Request-ID"] = request_id
-        request_logger.info(
-            "request_completed method=%s path=%s status=%s duration_ms=%s",
-            request.method,
-            request.get_full_path(),
-            response.status_code,
-            duration_ms,
-        )
-        reset_request_id(token)
-        return response
+        else:
+            duration_ms = int((time.perf_counter() - started_at) * 1000)
+            response["X-Request-ID"] = request_id
+            observe_request(request.method, request.path, response.status_code, duration_ms)
+            request_logger.info(
+                "request_completed method=%s path=%s status=%s duration_ms=%s",
+                request.method,
+                request.get_full_path(),
+                response.status_code,
+                duration_ms,
+            )
+            return response
+        finally:
+            decrement_inflight_requests()
+            reset_request_id(token)
 
 
 class ContentSecurityPolicyMiddleware:

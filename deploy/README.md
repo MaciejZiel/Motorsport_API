@@ -6,6 +6,8 @@ Production deployment artifacts are codified in this directory:
   - production stack definition (PostgreSQL, Redis, API, Frontend)
   - strict env validation for required variables
   - healthchecks and restart policy
+- `monitoring/`:
+  - Prometheus scrape config and alert rules for production monitoring
 - `.env.production.example`:
   - reference runtime environment variables
   - expected release image variables from CI/CD
@@ -14,6 +16,8 @@ Use scripts from repository root:
 
 - `scripts/deploy_release.sh`
 - `scripts/rollback_release.sh`
+- `scripts/backup_postgres.sh`
+- `scripts/restore_postgres.sh`
 
 Full operational procedure:
 

@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase
 
+from racing.metrics import render_metrics, reset_metrics_state
 from racing.middleware import RequestIdMiddleware
 from racing.request_context import RequestIdFilter, get_request_id, reset_request_id, set_request_id
 
@@ -26,6 +27,7 @@ class RequestContextTests(SimpleTestCase):
 class RequestIdMiddlewareTests(SimpleTestCase):
     def setUp(self):
         self.factory = RequestFactory()
+        reset_metrics_state()
 
     def test_adds_generated_request_id_and_response_header(self):
         middleware = RequestIdMiddleware(lambda _request: HttpResponse("ok"))
@@ -40,6 +42,9 @@ class RequestIdMiddlewareTests(SimpleTestCase):
         self.assertLessEqual(len(response["X-Request-ID"]), 64)
         self.assertEqual(get_request_id(), "-")
         info_mock.assert_called_once()
+        metrics_payload = render_metrics()
+        self.assertIn('motorsport_http_requests_total{method="GET",path="/api/health/",status="200"} 1', metrics_payload)
+        self.assertIn('motorsport_http_request_duration_ms_count{method="GET",path="/api/health/"} 1', metrics_payload)
 
     def test_uses_incoming_request_id_and_truncates_to_64_characters(self):
         middleware = RequestIdMiddleware(lambda _request: HttpResponse("ok"))
@@ -64,3 +69,5 @@ class RequestIdMiddlewareTests(SimpleTestCase):
 
         exception_mock.assert_called_once()
         self.assertEqual(get_request_id(), "-")
+        metrics_payload = render_metrics()
+        self.assertIn('motorsport_http_requests_total{method="GET",path="/api/health/",status="500"} 1', metrics_payload)

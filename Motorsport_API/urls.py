@@ -3,12 +3,13 @@ from django.urls import include, path
 from django.views.generic.base import RedirectView
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
-from racing.views import health_check
+from racing.views import health_check, metrics_export
 
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="swagger-ui", permanent=False), name="root"),
     path("admin/", admin.site.urls),
     path("api/health/", health_check, name="api-health"),
+    path("api/metrics/", metrics_export, name="api-metrics"),
     path("api/v1/", include(("racing.urls", "racing"), namespace="api-v1")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

@@ -37,6 +37,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `GET /api/v1/standings/constructors/?season=2026`
 - `GET /api/v1/stats/`
 - `GET /api/health/`
+- `GET /api/metrics/`
 - `GET /api/v1/auth/me/`
 - `GET /api/v1/auth/csrf/`
 - `POST /api/v1/auth/logout/`
@@ -141,6 +142,11 @@ Optional deployment integration (manual workflow run):
 - Automation scripts:
   - `scripts/deploy_release.sh`
   - `scripts/rollback_release.sh`
+  - `scripts/backup_postgres.sh`
+  - `scripts/restore_postgres.sh`
+- Monitoring baseline:
+  - `deploy/monitoring/prometheus.yml`
+  - `deploy/monitoring/alert.rules.yml`
 
 Example rollout:
 ```bash
@@ -157,6 +163,26 @@ bash scripts/deploy_release.sh \
 Example rollback:
 ```bash
 bash scripts/rollback_release.sh --env-file deploy/.env.production
+```
+
+Enable monitoring profile (Prometheus):
+```bash
+docker compose -f deploy/compose.production.yml \
+  --env-file deploy/.env.production \
+  --profile monitoring up -d prometheus
+```
+
+Create PostgreSQL backup:
+```bash
+bash scripts/backup_postgres.sh --env-file deploy/.env.production
+```
+
+Restore PostgreSQL backup (destructive):
+```bash
+bash scripts/restore_postgres.sh \
+  --backup-file deploy/backups/<backup-file>.sql.gz \
+  --env-file deploy/.env.production \
+  --yes
 ```
 
 ## Production security baseline
@@ -201,6 +227,8 @@ python manage.py check --deploy
 - Every response includes `X-Request-ID`.
 - Request-completion logs include request ID, path, method, status, and duration.
 - Logs are formatted with request ID for cross-service traceability.
+- Prometheus metrics are exposed at `GET /api/metrics/` (request counts, latency, inflight gauge).
+- Production monitoring rules are defined in `deploy/monitoring/alert.rules.yml`.
 
 ## UI screenshots
 ![Login page](docs/screenshots/login.png)

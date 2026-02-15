@@ -98,9 +98,14 @@ jobs:
             deploy/compose.production.yml
             deploy/.env.production.example
             deploy/README.md
+            deploy/monitoring/prometheus.yml
+            deploy/monitoring/alert.rules.yml
+            deploy/monitoring/README.md
             docs/runbooks/production-deployment.md
             scripts/deploy_release.sh
             scripts/rollback_release.sh
+            scripts/backup_postgres.sh
+            scripts/restore_postgres.sh
           if-no-files-found: error
 
       - name: Build backend image
