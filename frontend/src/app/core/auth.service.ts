@@ -12,14 +12,14 @@ import {
   throwError,
 } from 'rxjs';
 import { API_BASE_URL } from '../api.config';
-import { AuthUser, RegisterResponse, TokenPair } from './auth.types';
+import { AuthSessionResponse, AuthUser } from './auth.types';
 
 const CURRENT_USER_KEY = 'motorsport_current_user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
-  private refreshInFlight$: Observable<string> | null = null;
+  private refreshInFlight$: Observable<void> | null = null;
   private csrfInFlight$: Observable<void> | null = null;
 
   private readonly currentUser = signal<AuthUser | null>(this.readUserStorage());
@@ -29,18 +29,22 @@ export class AuthService {
     () => Boolean(this.currentUser()?.is_staff || this.currentUser()?.is_superuser)
   );
 
-  login(username: string, password: string): Observable<TokenPair> {
+  login(username: string, password: string): Observable<AuthUser> {
     return this.ensureCsrfToken().pipe(
       switchMap(() =>
-        this.http.post<TokenPair>(`${API_BASE_URL}/auth/token/`, { username, password })
-      )
+        this.http.post<AuthSessionResponse>(`${API_BASE_URL}/auth/login/`, { username, password })
+      ),
+      tap((response) => {
+        this.setCurrentUser(response.user);
+      }),
+      map((response) => response.user)
     );
   }
 
-  register(username: string, password: string, passwordConfirm: string): Observable<TokenPair> {
+  register(username: string, password: string, passwordConfirm: string): Observable<AuthUser> {
     return this.ensureCsrfToken().pipe(
       switchMap(() =>
-        this.http.post<RegisterResponse>(`${API_BASE_URL}/auth/register/`, {
+        this.http.post<AuthSessionResponse>(`${API_BASE_URL}/auth/register/`, {
           username,
           password,
           password_confirm: passwordConfirm,
@@ -49,22 +53,21 @@ export class AuthService {
       tap((response) => {
         this.setCurrentUser(response.user);
       }),
-      map((response) => ({
-        access: response.access,
-        refresh: response.refresh,
-      }))
+      map((response) => response.user)
     );
   }
 
-  refreshAccessToken(): Observable<string> {
+  refreshAccessToken(): Observable<void> {
     if (this.refreshInFlight$) {
       return this.refreshInFlight$;
     }
 
-    this.refreshInFlight$ = this.http
-      .post<{ access: string }>(`${API_BASE_URL}/auth/token/refresh/`, {})
+    this.refreshInFlight$ = this.ensureCsrfToken()
       .pipe(
-        map((tokens) => tokens.access),
+        switchMap(() =>
+          this.http.post<{ detail: string }>(`${API_BASE_URL}/auth/session/refresh/`, {})
+        ),
+        map(() => void 0),
         catchError((error) => {
           this.clearAuthState();
           return throwError(() => error);
@@ -183,5 +186,4 @@ export class AuthService {
       return null;
     }
   }
-
 }

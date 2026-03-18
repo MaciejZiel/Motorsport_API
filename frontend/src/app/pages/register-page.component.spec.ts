@@ -33,7 +33,9 @@ describe('RegisterPageComponent', () => {
   });
 
   it('registers and redirects to the requested route', async () => {
-    authMock.register.mockReturnValue(of({ access: 'access', refresh: 'refresh' }));
+    authMock.register.mockReturnValue(
+      of({ id: 1, username: 'newfan', is_staff: false, is_superuser: false })
+    );
 
     const fixture = TestBed.createComponent(RegisterPageComponent);
     const component = fixture.componentInstance;

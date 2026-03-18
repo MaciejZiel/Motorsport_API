@@ -4,7 +4,7 @@ from django.test import RequestFactory, SimpleTestCase
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
 
-from racing.error_views import custom_404, custom_500
+from racing.error_views import csrf_failure, custom_404, custom_500
 from racing.exceptions import _build_error_payload, api_exception_handler
 
 
@@ -116,3 +116,16 @@ class ErrorViewsTests(SimpleTestCase):
         response = custom_500(request)
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertJSONEqual(response.content, {"detail": "Server error."})
+
+    def test_api_csrf_failure_returns_structured_payload(self):
+        request = self.factory.post("/api/v1/auth/login/")
+        response = csrf_failure(request, "CSRF token missing.")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertJSONEqual(
+            response.content,
+            {
+                "error": "forbidden",
+                "detail": "CSRF verification failed.",
+                "status_code": 403,
+            },
+        )

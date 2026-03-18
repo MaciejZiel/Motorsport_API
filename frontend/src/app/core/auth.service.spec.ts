@@ -37,10 +37,12 @@ describe('AuthService', () => {
     service.login('admin', 'testpass123').subscribe();
 
     flushCsrfRequest();
-    const request = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
+    const request = httpMock.expectOne(`${API_BASE_URL}/auth/login/`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ username: 'admin', password: 'testpass123' });
-    request.flush({ access: 'access-token', refresh: 'refresh-token' });
+    request.flush({
+      user: { id: 1, username: 'admin', is_staff: true, is_superuser: true },
+    });
   });
 
   it('stores current user profile after registration', async () => {
@@ -52,14 +54,14 @@ describe('AuthService', () => {
     const request = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     expect(request.request.method).toBe('POST');
     request.flush({
-      access: 'access-token',
-      refresh: 'refresh-token',
       user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
     });
 
     await expect(registerPromise).resolves.toEqual({
-      access: 'access-token',
-      refresh: 'refresh-token',
+      id: 1,
+      username: 'newfan',
+      is_staff: false,
+      is_superuser: false,
     });
     expect(service.getCurrentUser()).toEqual({
       id: 1,
@@ -76,8 +78,6 @@ describe('AuthService', () => {
     flushCsrfRequest();
     const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     registerRequest.flush({
-      access: 'access-token',
-      refresh: 'refresh-token',
       user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
     });
 
@@ -110,23 +110,25 @@ describe('AuthService', () => {
   it('refreshes access token using cookie-based refresh flow', async () => {
     const refreshPromise = firstValueFrom(service.refreshAccessToken());
 
-    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
+    flushCsrfRequest();
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/session/refresh/`);
     expect(refreshRequest.request.method).toBe('POST');
     expect(refreshRequest.request.body).toEqual({});
-    refreshRequest.flush({ access: 'new-access-token' });
+    refreshRequest.flush({ detail: 'Session refreshed.' });
 
-    await expect(refreshPromise).resolves.toBe('new-access-token');
+    await expect(refreshPromise).resolves.toBeUndefined();
   });
 
   it('deduplicates concurrent refresh calls into one request', async () => {
     const firstRefreshPromise = firstValueFrom(service.refreshAccessToken());
     const secondRefreshPromise = firstValueFrom(service.refreshAccessToken());
 
-    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
-    refreshRequest.flush({ access: 'new-access-token' });
+    flushCsrfRequest();
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/session/refresh/`);
+    refreshRequest.flush({ detail: 'Session refreshed.' });
 
-    await expect(firstRefreshPromise).resolves.toBe('new-access-token');
-    await expect(secondRefreshPromise).resolves.toBe('new-access-token');
+    await expect(firstRefreshPromise).resolves.toBeUndefined();
+    await expect(secondRefreshPromise).resolves.toBeUndefined();
   });
 
   it('clears local auth state when refresh fails', async () => {
@@ -134,13 +136,12 @@ describe('AuthService', () => {
     flushCsrfRequest();
     const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     registerRequest.flush({
-      access: 'access-token',
-      refresh: 'refresh-token',
       user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
     });
 
     const refreshPromise = firstValueFrom(service.refreshAccessToken());
-    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
+    flushCsrfRequest();
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/session/refresh/`);
     refreshRequest.flush({ detail: 'Refresh invalid' }, { status: 401, statusText: 'Unauthorized' });
 
     await expect(refreshPromise).rejects.toBeTruthy();
@@ -154,8 +155,6 @@ describe('AuthService', () => {
     flushCsrfRequest();
     const registerRequest = httpMock.expectOne(`${API_BASE_URL}/auth/register/`);
     registerRequest.flush({
-      access: 'access-token',
-      refresh: 'refresh-token',
       user: { id: 1, username: 'newfan', is_staff: false, is_superuser: false },
     });
 

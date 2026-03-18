@@ -3,14 +3,17 @@ from django.db import DatabaseError, connection
 from django.db.models import Count, Max, Q, Sum
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -21,6 +24,7 @@ from .models import Driver, Race, RaceResult, Season, Team
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
     ApiStatsSerializer,
+    AuthSessionResponseSerializer,
     AuthMeSerializer,
     ConstructorSeasonStandingsResponseSerializer,
     CsrfTokenSerializer,
@@ -28,12 +32,14 @@ from .serializers import (
     DriverSeasonStandingsResponseSerializer,
     DriverSerializer,
     HealthCheckSerializer,
+    LoginSerializer,
     LogoutSerializer,
     RaceResultSerializer,
     RaceSerializer,
-    RegisterResponseSerializer,
+    RefreshTokenRequestSerializer,
     RegisterSerializer,
     SeasonSerializer,
+    SessionRefreshResponseSerializer,
     TeamDetailSerializer,
     TeamSerializer,
 )
@@ -72,6 +78,15 @@ def resolve_season(query_value: str | None):
     return Season.objects.order_by("-year").first()
 
 
+def build_auth_user_payload(user) -> dict[str, int | str | bool]:
+    return {
+        "id": user.id,
+        "username": user.get_username(),
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+    }
+
+
 class TeamViewSet(viewsets.ModelViewSet):
     serializer_class = TeamSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -100,12 +115,15 @@ class DriverViewSet(viewsets.ModelViewSet):
         queryset = Driver.objects.select_related("team").all()
 
         team_id = self.request.query_params.get("team")
+        team_name = self.request.query_params.get("team_name")
         country = self.request.query_params.get("country")
         min_points = self.request.query_params.get("min_points")
 
         team_id_value = parse_optional_int_query_param(team_id, "team")
         if team_id_value is not None:
             queryset = queryset.filter(team_id=team_id_value)
+        if team_name:
+            queryset = queryset.filter(team__name__icontains=team_name)
         if country:
             queryset = queryset.filter(team__country__icontains=country)
         min_points_value = parse_optional_int_query_param(min_points, "min_points", allow_zero=True)
@@ -201,6 +219,7 @@ class RaceResultViewSet(viewsets.ModelViewSet):
         return queryset.order_by("race__race_date", "position")
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class RegisterView(APIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -208,44 +227,45 @@ class RegisterView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_register"
 
-    @extend_schema(request=RegisterSerializer, responses={201: RegisterResponseSerializer})
+    @extend_schema(request=RegisterSerializer, responses={201: AuthSessionResponseSerializer})
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
         refresh = RefreshToken.for_user(user)
-        response = Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "username": user.get_username(),
-                    "is_staff": user.is_staff,
-                    "is_superuser": user.is_superuser,
-                },
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        response = Response({"user": build_auth_user_payload(user)}, status=status.HTTP_201_CREATED)
         set_auth_cookies(response, str(refresh.access_token), str(refresh))
         return response
 
 
-class LoginView(TokenObtainPairView):
+@method_decorator(csrf_protect, name="dispatch")
+class LoginView(APIView):
+    serializer_class = LoginSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_login"
 
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        if response.status_code == status.HTTP_200_OK:
-            access = response.data.get("access")
-            refresh = response.data.get("refresh")
-            if isinstance(access, str) and isinstance(refresh, str):
-                set_auth_cookies(response, access, refresh)
+    @extend_schema(request=LoginSerializer, responses={200: AuthSessionResponseSerializer})
+    def post(self, request):
+        serializer = TokenObtainPairSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.user
+        access = serializer.validated_data["access"]
+        refresh = serializer.validated_data["refresh"]
+
+        response = Response({"user": build_auth_user_payload(user)}, status=status.HTTP_200_OK)
+        set_auth_cookies(response, access, refresh)
         return response
+
+
+class TokenLoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_login"
 
 
 class TokenRefreshScopedView(TokenRefreshView):
@@ -254,18 +274,31 @@ class TokenRefreshScopedView(TokenRefreshView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_refresh"
 
-    def post(self, request, *args, **kwargs):
+ 
+@method_decorator(csrf_protect, name="dispatch")
+class SessionRefreshView(APIView):
+    serializer_class = RefreshTokenRequestSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_refresh"
+
+    @extend_schema(
+        request=RefreshTokenRequestSerializer,
+        responses={200: SessionRefreshResponseSerializer},
+    )
+    def post(self, request):
         refresh_token = request.data.get("refresh")
         if not isinstance(refresh_token, str) or not refresh_token.strip():
             refresh_token = request.COOKIES.get(settings.JWT_AUTH_COOKIE_REFRESH, "")
 
-        serializer = self.get_serializer(data={"refresh": refresh_token})
+        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
         try:
             serializer.is_valid(raise_exception=True)
         except TokenError as exc:
             raise InvalidToken(exc.args[0]) from exc
 
-        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        response = Response({"detail": "Session refreshed."}, status=status.HTTP_200_OK)
         access = serializer.validated_data.get("access")
         refresh = serializer.validated_data.get("refresh")
         if isinstance(access, str):
@@ -282,15 +315,7 @@ class AuthMeView(APIView):
     @extend_schema(responses={200: AuthMeSerializer})
     def get(self, request):
         user = request.user
-        return Response(
-            {
-                "id": user.id,
-                "username": user.get_username(),
-                "is_staff": user.is_staff,
-                "is_superuser": user.is_superuser,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response(build_auth_user_payload(user), status=status.HTTP_200_OK)
 
 
 class CsrfTokenView(APIView):
@@ -305,14 +330,15 @@ class CsrfTokenView(APIView):
         return Response({"csrfToken": get_token(request)}, status=status.HTTP_200_OK)
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class LogoutView(APIView):
-    serializer_class = LogoutSerializer
+    serializer_class = RefreshTokenRequestSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_logout"
 
     @extend_schema(
-        request=LogoutSerializer,
+        request=RefreshTokenRequestSerializer,
         responses={204: OpenApiResponse(description="Refresh token blacklisted.")},
     )
     def post(self, request):

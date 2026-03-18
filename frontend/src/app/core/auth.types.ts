@@ -5,11 +5,6 @@ export interface AuthUser {
   is_superuser: boolean;
 }
 
-export interface TokenPair {
-  access: string;
-  refresh: string;
-}
-
-export interface RegisterResponse extends TokenPair {
+export interface AuthSessionResponse {
   user: AuthUser;
 }

@@ -8,13 +8,21 @@ const RETRY_AFTER_REFRESH = new HttpContextToken<boolean>(() => false);
 
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
+  const isLoginEndpoint = request.url === `${API_BASE_URL}/auth/login/`;
   const isRegisterEndpoint = request.url === `${API_BASE_URL}/auth/register/`;
   const isCsrfEndpoint = request.url === `${API_BASE_URL}/auth/csrf/`;
   const isTokenEndpoint = request.url === `${API_BASE_URL}/auth/token/`;
   const isRefreshEndpoint = request.url === `${API_BASE_URL}/auth/token/refresh/`;
+  const isSessionRefreshEndpoint = request.url === `${API_BASE_URL}/auth/session/refresh/`;
   const isLogoutEndpoint = request.url === `${API_BASE_URL}/auth/logout/`;
   const isAuthEndpoint =
-    isRegisterEndpoint || isCsrfEndpoint || isTokenEndpoint || isRefreshEndpoint || isLogoutEndpoint;
+    isLoginEndpoint ||
+    isRegisterEndpoint ||
+    isCsrfEndpoint ||
+    isTokenEndpoint ||
+    isRefreshEndpoint ||
+    isSessionRefreshEndpoint ||
+    isLogoutEndpoint;
 
   return next(request).pipe(
     catchError((error: unknown) => {

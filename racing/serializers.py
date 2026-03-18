@@ -42,17 +42,20 @@ class RegisterSerializer(serializers.Serializer):
         )
 
 
-class RegisterUserSerializer(serializers.Serializer):
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+
+class AuthUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
     is_staff = serializers.BooleanField()
     is_superuser = serializers.BooleanField()
 
 
-class RegisterResponseSerializer(serializers.Serializer):
-    access = serializers.CharField()
-    refresh = serializers.CharField()
-    user = RegisterUserSerializer()
+class AuthSessionResponseSerializer(serializers.Serializer):
+    user = AuthUserSerializer()
 
 
 class AuthMeSerializer(serializers.Serializer):
@@ -68,6 +71,14 @@ class CsrfTokenSerializer(serializers.Serializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class RefreshTokenRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=False, allow_blank=True)
+
+
+class SessionRefreshResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
 
 
 class DriverSeasonStandingSerializer(serializers.Serializer):

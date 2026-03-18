@@ -9,7 +9,15 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from racing.models import Driver, Race, RaceResult, Season, Team
-from racing.views import CsrfTokenView, LoginView, LogoutView, RegisterView, TokenRefreshScopedView
+from racing.views import (
+    CsrfTokenView,
+    LoginView,
+    LogoutView,
+    RegisterView,
+    SessionRefreshView,
+    TokenLoginView,
+    TokenRefreshScopedView,
+)
 
 
 class MotorsportApiTests(APITestCase):
@@ -61,6 +69,26 @@ class MotorsportApiTests(APITestCase):
         self.client.cookies.pop(settings.JWT_AUTH_COOKIE_REFRESH, None)
         return response.data["access"]
 
+    def _csrf_client(self) -> APIClient:
+        return APIClient(enforce_csrf_checks=True)
+
+    def _issue_csrf_token(self, client: APIClient) -> str:
+        response = client.get(reverse("api-v1:csrf_token"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn(settings.CSRF_COOKIE_NAME, response.cookies)
+        return response.data["csrfToken"]
+
+    def _session_login(self, client: APIClient, username: str, password: str):
+        csrf_token = self._issue_csrf_token(client)
+        response = client.post(
+            reverse("api-v1:login"),
+            {"username": username, "password": password},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response, csrf_token
+
     def test_public_can_list_drivers(self):
         response = self.client.get(reverse("api-v1:driver-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -104,6 +132,11 @@ class MotorsportApiTests(APITestCase):
 
     def test_filter_drivers_by_team(self):
         response = self.client.get(reverse("api-v1:driver-list"), {"team": self.team_red.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_filter_drivers_by_team_name(self):
+        response = self.client.get(reverse("api-v1:driver-list"), {"team_name": "Red"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 2)
 
@@ -203,13 +236,11 @@ class MotorsportApiTests(APITestCase):
         self.assertIn("access", refresh_response.data)
 
     def test_login_sets_http_only_auth_cookies(self):
-        response = self.client.post(
-            reverse("api-v1:token_obtain_pair"),
-            {"username": "admin", "password": "testpass123"},
-            format="json",
-        )
+        csrf_client = self._csrf_client()
+        response, _csrf_token = self._session_login(csrf_client, "admin", "testpass123")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["username"], "admin")
         access_cookie = response.cookies.get(settings.JWT_AUTH_COOKIE_ACCESS)
         refresh_cookie = response.cookies.get(settings.JWT_AUTH_COOKIE_REFRESH)
         self.assertIsNotNone(access_cookie)
@@ -217,18 +248,22 @@ class MotorsportApiTests(APITestCase):
         self.assertTrue(access_cookie["httponly"])
         self.assertTrue(refresh_cookie["httponly"])
         self.assertEqual(refresh_cookie["path"], settings.JWT_AUTH_COOKIE_REFRESH_PATH)
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
 
-    def test_token_refresh_uses_refresh_cookie_when_body_missing(self):
-        login_response = self.client.post(
-            reverse("api-v1:token_obtain_pair"),
-            {"username": "admin", "password": "testpass123"},
+    def test_session_refresh_uses_refresh_cookie_when_body_missing(self):
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+        csrf_token = self._issue_csrf_token(csrf_client)
+
+        refresh_response = csrf_client.post(
+            reverse("api-v1:session_refresh"),
+            {},
             format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
         )
-        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
-
-        refresh_response = self.client.post(reverse("api-v1:token_refresh"), {}, format="json")
         self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", refresh_response.data)
+        self.assertEqual(refresh_response.data["detail"], "Session refreshed.")
         self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, refresh_response.cookies)
 
     def test_csrf_endpoint_sets_cookie(self):
@@ -242,15 +277,10 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_auth_me_accepts_access_cookie_authentication(self):
-        login_response = self.client.post(
-            reverse("api-v1:token_obtain_pair"),
-            {"username": "admin", "password": "testpass123"},
-            format="json",
-        )
-        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
 
-        self.client.credentials()
-        response = self.client.get(reverse("api-v1:auth_me"))
+        response = csrf_client.get(reverse("api-v1:auth_me"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["username"], "admin")
 
@@ -274,8 +304,15 @@ class MotorsportApiTests(APITestCase):
         access = token_response.data["access"]
         refresh = token_response.data["refresh"]
 
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
-        logout_response = self.client.post(reverse("api-v1:logout"), {"refresh": refresh}, format="json")
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        csrf_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        logout_response = csrf_client.post(
+            reverse("api-v1:logout"),
+            {"refresh": refresh},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
         self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
 
         refresh_response = self.client.post(
@@ -294,10 +331,11 @@ class MotorsportApiTests(APITestCase):
         )
         self.assertEqual(token_response.status_code, status.HTTP_200_OK)
 
-        csrf_response = self.client.get(reverse("api-v1:csrf_token"))
-        csrf_token = csrf_response.data["csrfToken"]
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+        csrf_token = self._issue_csrf_token(csrf_client)
 
-        logout_response = self.client.post(
+        logout_response = csrf_client.post(
             reverse("api-v1:logout"),
             {},
             format="json",
@@ -307,28 +345,35 @@ class MotorsportApiTests(APITestCase):
         self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, logout_response.cookies)
         self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, logout_response.cookies)
 
-        refresh_response = self.client.post(reverse("api-v1:token_refresh"), {}, format="json")
+        refresh_response = csrf_client.post(
+            reverse("api-v1:session_refresh"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
         self.assertEqual(refresh_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_logout_with_cookie_auth_requires_csrf_token(self):
         csrf_client = APIClient(enforce_csrf_checks=True)
 
-        token_response = csrf_client.post(
-            reverse("api-v1:token_obtain_pair"),
-            {"username": "admin", "password": "testpass123"},
-            format="json",
-        )
-        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+        self._session_login(csrf_client, "admin", "testpass123")
 
         response = csrf_client.post(reverse("api-v1:logout"), {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["error"], "forbidden")
+        self.assertEqual(response.json()["error"], "forbidden")
 
     def test_logout_requires_refresh_token(self):
         token = self._token_for("admin", "testpass123")
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        csrf_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
-        response = self.client.post(reverse("api-v1:logout"), {}, format="json")
+        response = csrf_client.post(
+            reverse("api-v1:logout"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"], "bad_request")
         self.assertIn("errors", response.data)
@@ -336,28 +381,37 @@ class MotorsportApiTests(APITestCase):
 
     def test_auth_endpoints_define_throttle_scopes(self):
         self.assertEqual(LoginView.throttle_scope, "auth_login")
+        self.assertEqual(TokenLoginView.throttle_scope, "auth_login")
+        self.assertEqual(SessionRefreshView.throttle_scope, "auth_refresh")
         self.assertEqual(TokenRefreshScopedView.throttle_scope, "auth_refresh")
         self.assertEqual(RegisterView.throttle_scope, "auth_register")
         self.assertEqual(LogoutView.throttle_scope, "auth_logout")
         self.assertEqual(CsrfTokenView.throttle_scope, "auth_csrf")
 
-    def test_register_creates_user_and_returns_tokens(self):
+    def test_register_creates_user_and_starts_cookie_session(self):
         payload = {
             "username": "newfan",
             "password": "StrongPass123!",
             "password_confirm": "StrongPass123!",
         }
-        response = self.client.post(reverse("api-v1:register"), payload, format="json")
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            payload,
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
         self.assertEqual(response.data["user"]["username"], "newfan")
         self.assertFalse(response.data["user"]["is_staff"])
         self.assertIn("is_superuser", response.data["user"])
         self.assertFalse(response.data["user"]["is_superuser"])
         self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, response.cookies)
         self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, response.cookies)
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
         User = get_user_model()
         self.assertTrue(User.objects.filter(username="newfan").exists())
 
@@ -367,7 +421,14 @@ class MotorsportApiTests(APITestCase):
             "password": "StrongPass123!",
             "password_confirm": "StrongPass123!",
         }
-        response = self.client.post(reverse("api-v1:register"), payload, format="json")
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            payload,
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"], "bad_request")
@@ -380,12 +441,58 @@ class MotorsportApiTests(APITestCase):
             "password": "StrongPass123!",
             "password_confirm": "StrongPass124!",
         }
-        response = self.client.post(reverse("api-v1:register"), payload, format="json")
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            payload,
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"], "bad_request")
         self.assertIn("errors", response.data)
         self.assertIn("password_confirm", response.data["errors"])
+
+    def test_login_requires_csrf_token(self):
+        csrf_client = self._csrf_client()
+        self._issue_csrf_token(csrf_client)
+
+        response = csrf_client.post(
+            reverse("api-v1:login"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
+
+    def test_register_requires_csrf_token(self):
+        csrf_client = self._csrf_client()
+        self._issue_csrf_token(csrf_client)
+
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            {
+                "username": "csrf-user",
+                "password": "StrongPass123!",
+                "password_confirm": "StrongPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
+
+    def test_session_refresh_requires_csrf_token(self):
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+
+        response = csrf_client.post(reverse("api-v1:session_refresh"), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
 
     def test_public_cannot_create_race(self):
         payload = {

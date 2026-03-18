@@ -41,13 +41,14 @@ describe('authTokenInterceptor', () => {
 
   it('does not refresh token for auth endpoints', async () => {
     const responsePromise = firstValueFrom(
-      http.post(`${API_BASE_URL}/auth/token/`, { username: 'admin', password: 'secret' })
+      http.post(`${API_BASE_URL}/auth/login/`, { username: 'admin', password: 'secret' })
     );
 
-    const request = httpMock.expectOne(`${API_BASE_URL}/auth/token/`);
+    const request = httpMock.expectOne(`${API_BASE_URL}/auth/login/`);
     request.flush({ detail: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });
 
-    httpMock.expectNone(`${API_BASE_URL}/auth/token/refresh/`);
+    httpMock.expectNone(`${API_BASE_URL}/auth/csrf/`);
+    httpMock.expectNone(`${API_BASE_URL}/auth/session/refresh/`);
     await expect(responsePromise).rejects.toBeInstanceOf(HttpErrorResponse);
   });
 
@@ -67,10 +68,14 @@ describe('authTokenInterceptor', () => {
     const initialRequest = httpMock.expectOne(`${API_BASE_URL}/drivers/`);
     initialRequest.flush({ detail: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
 
-    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
+    const csrfRequest = httpMock.expectOne(`${API_BASE_URL}/auth/csrf/`);
+    expect(csrfRequest.request.method).toBe('GET');
+    csrfRequest.flush({ csrfToken: 'csrf-token' });
+
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/session/refresh/`);
     expect(refreshRequest.request.method).toBe('POST');
     expect(refreshRequest.request.body).toEqual({});
-    refreshRequest.flush({ access: 'fresh-access-token' });
+    refreshRequest.flush({ detail: 'Session refreshed.' });
 
     const retriedRequest = httpMock.expectOne(`${API_BASE_URL}/drivers/`);
     retriedRequest.flush({ ok: true });
@@ -88,8 +93,11 @@ describe('authTokenInterceptor', () => {
     firstInitialRequest.flush({ detail: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
     secondInitialRequest.flush({ detail: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
 
-    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
-    refreshRequest.flush({ access: 'fresh-access-token' });
+    const csrfRequest = httpMock.expectOne(`${API_BASE_URL}/auth/csrf/`);
+    csrfRequest.flush({ csrfToken: 'csrf-token' });
+
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/session/refresh/`);
+    refreshRequest.flush({ detail: 'Session refreshed.' });
 
     const firstRetriedRequest = httpMock.expectOne(`${API_BASE_URL}/drivers/`);
     const secondRetriedRequest = httpMock.expectOne(`${API_BASE_URL}/teams/`);
@@ -107,7 +115,10 @@ describe('authTokenInterceptor', () => {
     const initialRequest = httpMock.expectOne(`${API_BASE_URL}/teams/`);
     initialRequest.flush({ detail: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
 
-    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/token/refresh/`);
+    const csrfRequest = httpMock.expectOne(`${API_BASE_URL}/auth/csrf/`);
+    csrfRequest.flush({ csrfToken: 'csrf-token' });
+
+    const refreshRequest = httpMock.expectOne(`${API_BASE_URL}/auth/session/refresh/`);
     refreshRequest.flush({ detail: 'Refresh invalid' }, { status: 401, statusText: 'Unauthorized' });
 
     await expect(responsePromise).rejects.toBeInstanceOf(HttpErrorResponse);

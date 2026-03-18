@@ -25,3 +25,16 @@ def custom_500(request):
             status=500,
         )
     return JsonResponse({"detail": "Server error."}, status=500)
+
+
+def csrf_failure(request, reason=""):
+    if request.path.startswith("/api/"):
+        return JsonResponse(
+            {
+                "error": "forbidden",
+                "detail": "CSRF verification failed.",
+                "status_code": 403,
+            },
+            status=403,
+        )
+    return JsonResponse({"detail": "CSRF verification failed."}, status=403)
