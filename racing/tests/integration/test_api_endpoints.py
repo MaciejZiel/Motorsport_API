@@ -132,7 +132,18 @@ class MotorsportApiTests(APITestCase):
 
         payload = {"name": "Admin Driver", "points": 99, "team_id": self.team_red.id}
         response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("points", response.data["errors"])
+
+    def test_admin_can_create_driver_without_points_field(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {"name": "Admin Driver", "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["points"], 0)
 
     def test_stats_endpoint(self):
         response = self.client.get(reverse("api-v1:api-stats"))
@@ -476,6 +487,20 @@ class MotorsportApiTests(APITestCase):
         self.assertEqual(response.data["error"], "bad_request")
         self.assertIn("errors", response.data)
         self.assertIn("season", response.data["errors"])
+
+    def test_driver_points_field_cannot_be_modified_via_api(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.patch(
+            reverse("api-v1:driver-detail", args=[self.driver_max.id]),
+            {"points": 999},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("points", response.data["errors"])
 
     def test_standings_without_season_use_latest(self):
         season_2025 = Season.objects.create(year=2025, name="World Championship 2025")

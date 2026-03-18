@@ -29,6 +29,14 @@ class Driver(models.Model):
     def __str__(self):
         return f"{self.name} ({self.team})"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if self.pk:
+            refreshed_points = type(self).recalculate_points_for_ids([self.pk]).get(self.pk, 0)
+            if self.points != refreshed_points:
+                self.points = refreshed_points
+
     @classmethod
     def recalculate_points_for_ids(cls, driver_ids: Iterable[int]) -> dict[int, int]:
         normalized_ids = sorted({int(driver_id) for driver_id in driver_ids if driver_id})

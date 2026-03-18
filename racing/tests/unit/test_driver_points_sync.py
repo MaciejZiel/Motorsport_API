@@ -50,3 +50,12 @@ class DriverPointsSyncTests(TestCase):
 
         self.driver_a.refresh_from_db()
         self.assertEqual(self.driver_a.points, 0)
+
+    def test_manual_driver_save_cannot_persist_incorrect_points(self):
+        RaceResult.objects.create(race=self.race, driver=self.driver_a, position=1, points_earned=25)
+
+        self.driver_a.points = 999
+        self.driver_a.save()
+
+        self.driver_a.refresh_from_db()
+        self.assertEqual(self.driver_a.points, 25)

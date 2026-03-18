@@ -122,12 +122,21 @@ class TeamSlimSerializer(serializers.ModelSerializer):
 
 
 class DriverSerializer(serializers.ModelSerializer):
+    points = serializers.IntegerField(read_only=True)
     team = TeamSlimSerializer(read_only=True)
     team_id = serializers.PrimaryKeyRelatedField(source="team", queryset=Team.objects.all(), write_only=True)
 
     class Meta:
         model = Driver
         fields = ["id", "name", "points", "team", "team_id"]
+
+    def validate(self, attrs):
+        validated = super().validate(attrs)
+
+        if "points" in self.initial_data:
+            raise serializers.ValidationError({"points": ["This field is managed from race results."]})
+
+        return validated
 
 
 class DriverCompactSerializer(serializers.ModelSerializer):
