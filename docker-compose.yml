@@ -32,7 +32,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn Motorsport_API.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
+    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn Motorsport_API.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-1} --timeout ${GUNICORN_TIMEOUT:-60}"
     environment:
       # Local compose should work out-of-the-box without production-only secrets.
       DJANGO_ENV: ${DJANGO_ENV:-development}
@@ -54,6 +54,8 @@ services:
       DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-False}
       DJANGO_USE_X_FORWARDED_PROTO: ${DJANGO_USE_X_FORWARDED_PROTO:-False}
       DJANGO_USE_X_FORWARDED_HOST: ${DJANGO_USE_X_FORWARDED_HOST:-False}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-60}
     volumes:
       - .:/app
     ports:

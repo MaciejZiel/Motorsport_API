@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Driver } from '../core/motorsport-api.types';
+import { reportUiError } from '../core/ui-error.utils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -56,7 +57,7 @@ export class DriverDetailPageComponent {
       this.driver.set(response);
       this.state.set('ready');
     } catch (error) {
-      console.error(error);
+      reportUiError(error);
       this.driver.set(null);
       this.errorMessage.set(this.resolveErrorMessage(error));
       this.state.set('error');
@@ -69,7 +70,7 @@ export class DriverDetailPageComponent {
         return 'Driver not found.';
       }
       if (error.status === 0) {
-        return 'Cannot connect to backend API.';
+        return 'Driver profile data is temporarily unavailable.';
       }
 
       const payload = error.error;
@@ -81,6 +82,6 @@ export class DriverDetailPageComponent {
       }
     }
 
-    return 'Cannot load driver details from API.';
+    return 'We could not load this driver profile.';
   }
 }

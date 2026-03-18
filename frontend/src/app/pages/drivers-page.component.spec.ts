@@ -52,7 +52,7 @@ describe('DriversPageComponent', () => {
   });
 
   it('builds query params correctly when numeric filters come from number inputs', async () => {
-    component.teamIdFilter = 2;
+    component.teamFilter = 'Red Apex';
     component.countryFilter = 'Italy';
     component.minPointsFilter = 100;
 
@@ -63,14 +63,14 @@ describe('DriversPageComponent', () => {
     const navigateCall = navigateSpy.mock.calls.at(-1);
     expect(navigateCall).toBeDefined();
     expect(navigateCall?.[1]?.queryParams).toEqual({
-      team: 2,
+      team_name: 'Red Apex',
       country: 'Italy',
       min_points: 100,
     });
   });
 
   it('treats numeric filters as active', () => {
-    component.teamIdFilter = 1;
+    component.teamFilter = 'Red Apex';
     component.minPointsFilter = 0;
 
     expect(component.hasActiveFilters()).toBe(true);

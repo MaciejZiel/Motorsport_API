@@ -6,6 +6,7 @@ import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Driver } from '../core/motorsport-api.types';
+import { reportUiError } from '../core/ui-error.utils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -29,13 +30,13 @@ export class DriversPageComponent {
   readonly hasNextPage = signal(false);
   readonly hasPreviousPage = signal(false);
 
-  teamIdFilter: string | number | null = '';
+  teamFilter = '';
   countryFilter = '';
   minPointsFilter: string | number | null = '';
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
-      this.teamIdFilter = params.get('team') ?? '';
+      this.teamFilter = params.get('team_name') ?? params.get('team') ?? '';
       this.countryFilter = params.get('country') ?? '';
       this.minPointsFilter = params.get('min_points') ?? '';
       const page = this.parseOptionalPositiveInteger(params.get('page') ?? '') ?? 1;
@@ -52,7 +53,7 @@ export class DriversPageComponent {
       const response = await firstValueFrom(
         this.api.getDrivers({
           page: targetPage,
-          teamId: this.parseOptionalPositiveInteger(this.teamIdFilter),
+          teamName: this.teamFilter,
           country: this.countryFilter,
           minPoints: this.parseOptionalPositiveInteger(this.minPointsFilter, true),
         })
@@ -64,7 +65,7 @@ export class DriversPageComponent {
       this.hasPreviousPage.set(Boolean(response.previous));
       this.state.set('ready');
     } catch (error) {
-      console.error(error);
+      reportUiError(error);
       this.totalCount.set(0);
       this.drivers.set([]);
       this.hasNextPage.set(false);
@@ -79,7 +80,7 @@ export class DriversPageComponent {
   }
 
   clearFilters(): void {
-    this.teamIdFilter = '';
+    this.teamFilter = '';
     this.countryFilter = '';
     this.minPointsFilter = '';
     void this.navigateWithQueryParams(1);
@@ -105,7 +106,7 @@ export class DriversPageComponent {
 
   hasActiveFilters(): boolean {
     return Boolean(
-      this.parseOptionalPositiveInteger(this.teamIdFilter) !== undefined ||
+      this.teamFilter.trim() ||
         this.countryFilter.trim() ||
         this.parseOptionalPositiveInteger(this.minPointsFilter, true) !== undefined
     );
@@ -121,7 +122,7 @@ export class DriversPageComponent {
   private resolveErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
-        return 'Cannot connect to backend API.';
+        return 'Live driver data is temporarily unavailable.';
       }
 
       const payload = error.error;
@@ -132,7 +133,7 @@ export class DriversPageComponent {
         }
       }
     }
-    return 'Cannot load drivers list from API.';
+    return 'We could not load the driver lineup.';
   }
 
   private parseOptionalPositiveInteger(
@@ -167,9 +168,9 @@ export class DriversPageComponent {
       queryParams['page'] = safePage;
     }
 
-    const teamId = this.parseOptionalPositiveInteger(this.teamIdFilter);
-    if (teamId !== undefined) {
-      queryParams['team'] = teamId;
+    const teamName = this.teamFilter.trim();
+    if (teamName) {
+      queryParams['team_name'] = teamName;
     }
 
     const country = this.countryFilter.trim();

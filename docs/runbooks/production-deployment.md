@@ -70,6 +70,7 @@ Rollback uses `PREVIOUS_*` values from `deploy/releases/state.env`, applies them
 Prometheus-ready metrics endpoint:
 
 - `GET /api/metrics/`
+- Scraped internally from `api:8000`; the public frontend intentionally does not proxy this path.
 
 Start monitoring profile:
 
@@ -121,7 +122,7 @@ Recommended baseline:
 2. API docs:
    - `curl -fsS http://127.0.0.1:8080/api/docs/ > /dev/null`
 3. Metrics endpoint:
-   - `curl -fsS http://127.0.0.1:8080/api/metrics/ | head`
+   - confirm target `motorsport_api` is `UP` in `http://127.0.0.1:9090/targets` when the monitoring profile is enabled
 4. Auth sanity:
    - open frontend and perform login + logout flow.
 5. Logs:

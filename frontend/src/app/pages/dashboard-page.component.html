@@ -1,20 +1,15 @@
 <div class="page-shell">
   <header class="hero">
     <p class="eyebrow">MOTORSPORT APP</p>
-    <h1>Race Control Dashboard</h1>
+    <h1>Championship At A Glance</h1>
     <p class="hero-copy">
-      Central summary from your Django API. Use navigation above to inspect drivers, teams and races.
+      Follow the shape of the season across drivers, teams and race weekends from one cockpit view.
     </p>
     <div class="hero-actions">
-      <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload data</button>
+      <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Refresh view</button>
       <a [href]="docsUrl" target="_blank" rel="noopener">Open API docs</a>
     </div>
   </header>
-
-  <section class="connection-strip">
-    <span>API endpoint</span>
-    <code>{{ apiBaseUrl }}</code>
-  </section>
 
   @if (state() === 'loading') {
     <section class="loading-grid">
@@ -24,7 +19,7 @@
     </section>
   } @else if (state() === 'error') {
     <section class="message message-error">
-      <h2>Backend offline</h2>
+      <h2>Live feed unavailable</h2>
       <p>{{ errorMessage() }}</p>
     </section>
   } @else {

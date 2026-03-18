@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { API_BASE_URL, API_DOCS_URL } from '../api.config';
+import { API_DOCS_URL } from '../api.config';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { ConstructorStanding, DriverStanding, ApiStats } from '../core/motorsport-api.types';
+import { reportUiError } from '../core/ui-error.utils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -15,7 +16,6 @@ type LoadState = 'loading' | 'ready' | 'error';
 export class DashboardPageComponent {
   private readonly api = inject(MotorsportApiService);
 
-  readonly apiBaseUrl = API_BASE_URL;
   readonly docsUrl = API_DOCS_URL;
 
   readonly state = signal<LoadState>('loading');
@@ -76,20 +76,18 @@ export class DashboardPageComponent {
 
       if (driversResponse.status === 'rejected' || constructorsResponse.status === 'rejected') {
         this.warningMessage.set(
-          'Stats loaded, but standings are unavailable right now. Seed data with `python manage.py seed_motorsport`.'
+          'Core season metrics loaded, but the latest standings snapshot is temporarily unavailable.'
         );
       }
 
       this.state.set('ready');
     } catch (error) {
-      console.error(error);
+      reportUiError(error);
       this.stats.set(null);
       this.driverStandings.set([]);
       this.constructorStandings.set([]);
       this.season.set(null);
-      this.errorMessage.set(
-        'Cannot connect to backend API. Start Django on http://127.0.0.1:8000 and refresh.'
-      );
+      this.errorMessage.set('We could not load championship data right now. Try again in a moment.');
       this.state.set('error');
     }
   }

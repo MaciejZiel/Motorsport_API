@@ -16,7 +16,7 @@ import {
 
 export interface DriverListFilters {
   page?: number;
-  teamId?: number;
+  teamName?: string;
   country?: string;
   minPoints?: number;
 }
@@ -62,8 +62,8 @@ export class MotorsportApiService {
     if (filters?.page && filters.page > 0) {
       params = params.set('page', filters.page);
     }
-    if (filters?.teamId && filters.teamId > 0) {
-      params = params.set('team', filters.teamId);
+    if (filters?.teamName?.trim()) {
+      params = params.set('team_name', filters.teamName.trim());
     }
     if (filters?.country?.trim()) {
       params = params.set('country', filters.country.trim());

@@ -29,7 +29,7 @@ export class App {
   readonly theme = signal<ThemeMode>(this.resolveInitialTheme());
   readonly isDarkMode = computed(() => this.theme() === 'dark');
 
-  readonly title = 'Motorsport Control Center';
+  readonly title = 'Grand Prix Atlas';
   readonly docsUrl = API_DOCS_URL;
   readonly navLinks: NavLink[] = [
     { path: '/', label: 'Dashboard' },

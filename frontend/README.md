@@ -41,21 +41,25 @@ Configured in `src/app/api.config.ts` and routed either by Angular dev proxy or 
 - `/races` Race calendar list
 - `/races/:id` Race detail
 - `/admin` Admin workspace (staff only)
-- `/login` JWT sign-in page
-- `/register` JWT sign-up page
+- `/login` sign-in page
+- `/register` sign-up page
 
-## JWT login
+## Session auth for the SPA
 
 Frontend sends credentials to:
 
-`POST /api/v1/auth/token/`
+`POST /api/v1/auth/login/`
 
-On success backend sets `HttpOnly` auth cookies (`access` + `refresh`).
+On success backend sets `HttpOnly` auth cookies (`access` + `refresh`) and returns the current user profile.
 Frontend keeps only the current user profile cache in `sessionStorage`.
 
 Frontend can create a user account via:
 
 `POST /api/v1/auth/register/`
+
+Frontend refreshes the cookie-based session via:
+
+`POST /api/v1/auth/session/refresh/`
 
 Frontend logout calls:
 
@@ -63,14 +67,23 @@ Frontend logout calls:
 
 to blacklist the current refresh token server-side.
 
+## Token endpoints for API clients
+
+The backend still exposes:
+
+- `POST /api/v1/auth/token/`
+- `POST /api/v1/auth/token/refresh/`
+
+for API clients that need Bearer tokens in response bodies instead of browser cookies.
+
 ## Protected routes and auth flow
 
 - Route `/admin` requires staff/superuser role.
 - Logged-out user is redirected to `/login?next=...`.
 - Logged-in user opening `/login` is redirected to `/`.
-- Frontend bootstraps CSRF with `GET /api/v1/auth/csrf/` and sends `X-CSRFToken` on unsafe requests.
+- Frontend bootstraps CSRF with `GET /api/v1/auth/csrf/` and sends `X-CSRFToken` on cookie-session writes.
 - Frontend uses `GET /api/v1/auth/me/` to resolve current user role and admin access.
-- On API `401`, frontend triggers cookie-based refresh (`POST /api/v1/auth/token/refresh/`) and retries the failed request once.
+- On API `401`, frontend triggers cookie-session refresh (`POST /api/v1/auth/session/refresh/`) and retries the failed request once.
 
 ## UI behavior
 
@@ -78,6 +91,7 @@ to blacklist the current refresh token server-side.
 - Theme selection is persisted in browser localStorage.
 - Optional URL override `?theme=light|dark` can force initial theme for preview/demo.
 - List pages (`/drivers`, `/teams`, `/races`) support filters + pagination synced with URL query params.
+- Driver filtering uses team name, country and minimum points instead of internal numeric IDs.
 - List pages include loading, error, and empty states with retry actions.
 
 ## Build and test

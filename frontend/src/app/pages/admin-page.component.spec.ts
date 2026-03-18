@@ -29,7 +29,6 @@ describe('AdminPageComponent', () => {
 
   it('renders module summary in template', () => {
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('6 modules available.');
+    expect(text).toContain('6 operational modules available.');
   });
 });
-

@@ -97,7 +97,7 @@ describe('DashboardPageComponent', () => {
     const component = fixture.componentInstance;
 
     expect(component.state()).toBe('ready');
-    expect(component.warningMessage()).toContain('standings are unavailable');
+    expect(component.warningMessage()).toContain('standings snapshot');
     expect(component.driverStandings()).toEqual([]);
     expect(component.constructorStandings()).toHaveLength(1);
     expect(component.season()).toBeNull();
@@ -114,7 +114,7 @@ describe('DashboardPageComponent', () => {
     const component = fixture.componentInstance;
 
     expect(component.state()).toBe('error');
-    expect(component.errorMessage()).toContain('Cannot connect to backend API');
+    expect(component.errorMessage()).toContain('championship data');
     expect(component.stats()).toBeNull();
     expect(component.driverStandings()).toEqual([]);
     expect(component.constructorStandings()).toEqual([]);

@@ -70,7 +70,7 @@ describe('MotorsportApiService', () => {
     service
       .getDrivers({
         page: 2,
-        teamId: 4,
+        teamName: 'Red',
         country: 'Italy',
         minPoints: 100,
       })
@@ -78,10 +78,12 @@ describe('MotorsportApiService', () => {
         expect(response.count).toBe(1);
       });
 
-    const request = httpMock.expectOne(`${API_BASE_URL}/drivers/?page=2&team=4&country=Italy&min_points=100`);
+    const request = httpMock.expectOne(
+      `${API_BASE_URL}/drivers/?page=2&team_name=Red&country=Italy&min_points=100`
+    );
     expect(request.request.method).toBe('GET');
     expect(request.request.params.get('page')).toBe('2');
-    expect(request.request.params.get('team')).toBe('4');
+    expect(request.request.params.get('team_name')).toBe('Red');
     expect(request.request.params.get('country')).toBe('Italy');
     expect(request.request.params.get('min_points')).toBe('100');
 

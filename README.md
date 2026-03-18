@@ -5,8 +5,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 ## What this project demonstrates
 - Relational modeling across `Team`, `Driver`, `Season`, `Race`, `RaceResult`
 - Versioned API (`/api/v1/`) with standings and analytics endpoints
-- JWT auth + admin-only write access
-- CSRF hardening for cookie-based auth flows
+- Dual-mode auth: CSRF-protected browser session cookies + JWT endpoints for API clients
 - Filtering, pagination, OpenAPI docs (Swagger/ReDoc)
 - Structured API error handling and application logging
 - Request tracing with `X-Request-ID` propagation in responses and logs
@@ -38,10 +37,12 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - `GET /api/v1/stats/`
 - `GET /api/health/`
 - `GET /api/metrics/`
+- `POST /api/v1/auth/login/`
 - `GET /api/v1/auth/me/`
 - `GET /api/v1/auth/csrf/`
 - `POST /api/v1/auth/logout/`
 - `POST /api/v1/auth/register/`
+- `POST /api/v1/auth/session/refresh/`
 - `POST /api/v1/auth/token/`
 - `POST /api/v1/auth/token/refresh/`
 
@@ -107,9 +108,11 @@ Compose starts four services: `db` (PostgreSQL), `redis` (shared cache), `api` (
 Frontend requests `/api/*` are proxied by Nginx to the backend service in Docker.
 Backend static files (including Django admin assets) are collected with `collectstatic` and served by WhiteNoise.
 Frontend image API upstream is configurable via `FRONTEND_API_UPSTREAM` (default: `http://api:8000`).
+Frontend intentionally blocks `/api/metrics/` so operational metrics stay on the backend/internal network path instead of the public UI surface.
 
 Default compose values run Django in local development mode (`DJANGO_ENV=development`, `DJANGO_DEBUG=True`) so the stack starts without extra setup.
 For production-like runs, provide `DJANGO_ENV=production` and a strong `DJANGO_SECRET_KEY` (see production baseline below).
+Gunicorn defaults to a single worker so the lightweight in-process metrics exporter remains consistent. Increase `GUNICORN_WORKERS` only if you deliberately accept or replace process-local metrics.
 
 ## CD pipeline (GitHub Actions)
 - Workflow file: `.github/workflows/cd.yml`
@@ -215,10 +218,11 @@ python manage.py check --deploy
 ## Auth security hardening
 - Refresh token blacklisting is enabled (SimpleJWT blacklist app).
 - `GET /api/v1/auth/csrf/` issues CSRF token cookie for SPA cookie-auth flows.
-- Login/register/refresh set JWT in `HttpOnly` cookies (`access` + `refresh`).
-- API accepts JWT from Bearer header (backward compatible) and secure auth cookies.
+- Browser session endpoints (`login`, `register`, `session/refresh`, `logout`) set or clear JWT in `HttpOnly` cookies (`access` + `refresh`) and require CSRF for unsafe requests.
+- Token endpoints (`/auth/token/`, `/auth/token/refresh/`) remain available for API clients that need Bearer tokens in response bodies.
+- API accepts JWT from Bearer header and secure auth cookies.
 - `POST /api/v1/auth/logout/` invalidates refresh token (from body or cookie) and clears auth cookies.
-- Unsafe cookie-authenticated requests require CSRF header (`X-CSRFToken`).
+- CSRF failures on API routes return structured JSON instead of Django's default HTML error page.
 - Global API throttling is enabled for anonymous and authenticated clients.
 - Auth endpoints (`login`, `refresh`, `register`, `logout`) use dedicated throttle scopes.
 - Baseline Content Security Policy header is enabled by default (`DJANGO_CONTENT_SECURITY_POLICY`).
@@ -227,7 +231,7 @@ python manage.py check --deploy
 - Every response includes `X-Request-ID`.
 - Request-completion logs include request ID, path, method, status, and duration.
 - Logs are formatted with request ID for cross-service traceability.
-- Prometheus metrics are exposed at `GET /api/metrics/` (request counts, latency, inflight gauge).
+- Prometheus scrapes `GET /api/metrics/` from the backend service directly; the public frontend does not proxy this path.
 - Production monitoring rules are defined in `deploy/monitoring/alert.rules.yml`.
 
 ## UI screenshots

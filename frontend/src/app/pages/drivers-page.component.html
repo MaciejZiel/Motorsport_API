@@ -2,8 +2,8 @@
   <header class="page-header">
     <div>
       <p class="kicker">Drivers</p>
-      <h1>Driver List</h1>
-      <p>Read-only data from <code>/api/v1/drivers/</code>.</p>
+      <h1>The Current Grid</h1>
+      <p>Explore the field, compare team contexts and scan the points picture.</p>
     </div>
     <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
   </header>
@@ -11,13 +11,12 @@
   <section class="panel filters-panel">
     <form class="filters-grid" (ngSubmit)="applyFilters()">
       <label>
-        Team ID
+        Team
         <input
-          type="number"
-          min="1"
-          [(ngModel)]="teamIdFilter"
-          name="teamIdFilter"
-          placeholder="e.g. 1"
+          type="text"
+          [(ngModel)]="teamFilter"
+          name="teamFilter"
+          placeholder="e.g. Red Apex"
         />
       </label>
 

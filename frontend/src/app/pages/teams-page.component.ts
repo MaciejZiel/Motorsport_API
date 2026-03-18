@@ -6,6 +6,7 @@ import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Team } from '../core/motorsport-api.types';
+import { reportUiError } from '../core/ui-error.utils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -61,7 +62,7 @@ export class TeamsPageComponent {
       this.hasPreviousPage.set(Boolean(response.previous));
       this.state.set('ready');
     } catch (error) {
-      console.error(error);
+      reportUiError(error);
       this.totalCount.set(0);
       this.teams.set([]);
       this.hasNextPage.set(false);
@@ -113,7 +114,7 @@ export class TeamsPageComponent {
   private resolveErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
-        return 'Cannot connect to backend API.';
+        return 'Team data is temporarily unavailable.';
       }
 
       const payload = error.error;
@@ -124,7 +125,7 @@ export class TeamsPageComponent {
         }
       }
     }
-    return 'Cannot load teams list from API.';
+    return 'We could not load the team roster.';
   }
 
   private parseOptionalPositiveInteger(value: string): number | undefined {

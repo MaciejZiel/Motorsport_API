@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { formatApiDate } from '../core/date-format.utils';
 import { MotorsportApiService } from '../core/motorsport-api.service';
 import { Race } from '../core/motorsport-api.types';
+import { reportUiError } from '../core/ui-error.utils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -63,7 +64,7 @@ export class RacesPageComponent {
       this.hasPreviousPage.set(Boolean(response.previous));
       this.state.set('ready');
     } catch (error) {
-      console.error(error);
+      reportUiError(error);
       this.totalCount.set(0);
       this.races.set([]);
       this.hasNextPage.set(false);
@@ -129,7 +130,7 @@ export class RacesPageComponent {
   private resolveErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
-        return 'Cannot connect to backend API.';
+        return 'Race weekend data is temporarily unavailable.';
       }
 
       const payload = error.error;
@@ -140,7 +141,7 @@ export class RacesPageComponent {
         }
       }
     }
-    return 'Cannot load races list from API.';
+    return 'We could not load the race calendar.';
   }
 
   private async navigateWithQueryParams(page: number): Promise<void> {

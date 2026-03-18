@@ -40,7 +40,7 @@ services:
       python manage.py collectstatic --noinput &&
       gunicorn Motorsport_API.wsgi:application
       --bind 0.0.0.0:8000
-      --workers ${GUNICORN_WORKERS:-3}
+      --workers ${GUNICORN_WORKERS:-1}
       --timeout ${GUNICORN_TIMEOUT:-60}"
     environment:
       DJANGO_ENV: production
@@ -68,6 +68,8 @@ services:
       DJANGO_USE_X_FORWARDED_PROTO: ${DJANGO_USE_X_FORWARDED_PROTO:-True}
       DJANGO_USE_X_FORWARDED_HOST: ${DJANGO_USE_X_FORWARDED_HOST:-True}
       JWT_AUTH_COOKIE_SECURE: ${JWT_AUTH_COOKIE_SECURE:-True}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-60}
     depends_on:
       db:
         condition: service_healthy
