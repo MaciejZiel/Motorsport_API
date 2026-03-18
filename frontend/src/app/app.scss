@@ -1,0 +1,202 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.8rem clamp(0.8rem, 2vw, 1.6rem) 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  border: 1px solid var(--shell-topbar-border);
+  background: linear-gradient(140deg, var(--shell-topbar-bg-start), var(--shell-topbar-bg-end));
+  border-radius: 18px;
+  padding: 0.7rem 0.85rem;
+  box-shadow: var(--shell-topbar-shadow);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: -0.48rem;
+  height: 0.48rem;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, var(--shell-topbar-accent-start), var(--shell-topbar-accent-end));
+  pointer-events: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: var(--shell-brand-text);
+  min-width: fit-content;
+}
+
+.brand-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Impact, 'Arial Black', sans-serif;
+  font-size: 1rem;
+  color: var(--shell-badge-text);
+  background: linear-gradient(125deg, var(--shell-badge-bg-start) 0%, var(--shell-badge-bg-end) 100%);
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.brand-subtitle {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--shell-brand-subtitle);
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55rem;
+  max-width: 100%;
+}
+
+.theme-toggle {
+  border: 1px solid var(--theme-toggle-border);
+  border-radius: 999px;
+  background: var(--theme-toggle-bg);
+  color: var(--theme-toggle-text);
+  box-shadow: var(--theme-toggle-shadow);
+  padding: 0.38rem 0.78rem;
+  font-size: 0.77rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.theme-toggle::before {
+  content: '';
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 50%;
+  background: var(--theme-toggle-dot);
+  box-shadow: 0 0 0 2px var(--theme-toggle-dot-ring);
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  background: var(--theme-toggle-bg-hover);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--theme-toggle-focus);
+  outline-offset: 2px;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  padding: 0.42rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--shell-nav-border);
+  background: var(--shell-nav-bg);
+  text-decoration: none;
+  color: var(--shell-nav-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.nav-link:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shell-nav-hover-shadow);
+}
+
+.active-link {
+  border-color: var(--shell-nav-active-border);
+  background: var(--shell-nav-active-bg);
+  color: var(--shell-nav-active-text);
+}
+
+.docs-link {
+  border-color: var(--shell-nav-docs-border);
+  background: var(--shell-nav-docs-bg);
+  color: var(--shell-nav-docs-text);
+}
+
+.auth-link {
+  border-color: var(--shell-nav-auth-border);
+  background: var(--shell-nav-auth-bg);
+  color: var(--shell-nav-auth-text);
+}
+
+.logout-button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.app-content {
+  margin-top: 0.2rem;
+  border: 1px solid var(--shell-content-border);
+  border-radius: 20px;
+  background: var(--shell-content-bg);
+  box-shadow: var(--shell-content-shadow);
+}
+
+@media (max-width: 780px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topbar::after {
+    left: 0.65rem;
+    right: 0.65rem;
+  }
+
+  .topbar-right {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .theme-toggle {
+    align-self: flex-end;
+  }
+
+  .main-nav {
+    justify-content: flex-start;
+  }
+}

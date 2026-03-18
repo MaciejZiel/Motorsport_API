@@ -1,0 +1,57 @@
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/">
+      <span class="brand-badge">M</span>
+      <div>
+        <p class="brand-title">{{ title }}</p>
+        <p class="brand-subtitle">Season stories, standings and race intelligence</p>
+      </div>
+    </a>
+
+    <div class="topbar-right">
+      <button
+        class="theme-toggle"
+        type="button"
+        (click)="toggleTheme()"
+        [attr.aria-label]="isDarkMode() ? 'Switch to light mode' : 'Switch to dark mode'"
+      >
+        @if (isDarkMode()) {
+          <span>Light mode</span>
+        } @else {
+          <span>Dark mode</span>
+        }
+      </button>
+
+        <nav class="main-nav">
+          @for (link of navLinks; track link.path) {
+          @if (
+            (!link.requiresAuth || auth.isAuthenticated()) &&
+            (!link.requiresAdmin || auth.isAdmin())
+          ) {
+            <a
+              class="nav-link"
+              [routerLink]="link.path"
+              [routerLinkActiveOptions]="{ exact: link.path === '/' }"
+              routerLinkActive="active-link"
+            >
+              {{ link.label }}
+            </a>
+          }
+        }
+        <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
+        @if (!auth.isAuthenticated()) {
+          <a class="nav-link auth-link" routerLink="/login" routerLinkActive="active-link">Login</a>
+          <a class="nav-link auth-link" routerLink="/register" routerLinkActive="active-link">Register</a>
+        } @else {
+          <button class="nav-link auth-link logout-button" type="button" (click)="handleLogout()">
+            Logout
+          </button>
+        }
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

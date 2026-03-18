@@ -1,28 +1,90 @@
+from django.conf import settings
+from django.db import DatabaseError, connection
 from django.db.models import Count, Max, Q, Sum
+from django.http import HttpResponse
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 
+from .auth_cookies import clear_auth_cookies, set_auth_cookies
+from .metrics import render_metrics
 from .models import Driver, Race, RaceResult, Season, Team
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
+    ApiStatsSerializer,
+    AuthSessionResponseSerializer,
+    AuthMeSerializer,
+    ConstructorSeasonStandingsResponseSerializer,
+    CsrfTokenSerializer,
+    DetailMessageSerializer,
+    DriverSeasonStandingsResponseSerializer,
     DriverSerializer,
+    HealthCheckSerializer,
+    LoginSerializer,
+    LogoutSerializer,
     RaceResultSerializer,
     RaceSerializer,
+    RefreshTokenRequestSerializer,
+    RegisterSerializer,
     SeasonSerializer,
+    SessionRefreshResponseSerializer,
     TeamDetailSerializer,
     TeamSerializer,
 )
 
 
+def parse_optional_int_query_param(
+    query_value: str | None,
+    param_name: str,
+    *,
+    allow_zero: bool = False,
+) -> int | None:
+    if query_value is None:
+        return None
+
+    normalized = query_value.strip()
+    if not normalized:
+        return None
+
+    if not normalized.isdigit():
+        raise ValidationError({param_name: ["Must be an integer."]})
+
+    parsed = int(normalized)
+    if parsed < 0 or (not allow_zero and parsed == 0):
+        raise ValidationError({param_name: ["Must be a positive integer."]})
+
+    return parsed
+
+
 def resolve_season(query_value: str | None):
-    if query_value:
-        if query_value.isdigit() and len(query_value) == 4:
-            return Season.objects.filter(year=int(query_value)).first()
-        if query_value.isdigit():
-            return Season.objects.filter(id=int(query_value)).first()
+    season_value = parse_optional_int_query_param(query_value, "season")
+    if season_value is not None:
+        normalized = query_value.strip() if query_value else ""
+        if len(normalized) == 4:
+            return Season.objects.filter(year=season_value).first()
+        return Season.objects.filter(id=season_value).first()
     return Season.objects.order_by("-year").first()
+
+
+def build_auth_user_payload(user) -> dict[str, int | str | bool]:
+    return {
+        "id": user.id,
+        "username": user.get_username(),
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+    }
 
 
 class TeamViewSet(viewsets.ModelViewSet):
@@ -53,15 +115,20 @@ class DriverViewSet(viewsets.ModelViewSet):
         queryset = Driver.objects.select_related("team").all()
 
         team_id = self.request.query_params.get("team")
+        team_name = self.request.query_params.get("team_name")
         country = self.request.query_params.get("country")
         min_points = self.request.query_params.get("min_points")
 
-        if team_id:
-            queryset = queryset.filter(team_id=team_id)
+        team_id_value = parse_optional_int_query_param(team_id, "team")
+        if team_id_value is not None:
+            queryset = queryset.filter(team_id=team_id_value)
+        if team_name:
+            queryset = queryset.filter(team__name__icontains=team_name)
         if country:
             queryset = queryset.filter(team__country__icontains=country)
-        if min_points and min_points.isdigit():
-            queryset = queryset.filter(points__gte=int(min_points))
+        min_points_value = parse_optional_int_query_param(min_points, "min_points", allow_zero=True)
+        if min_points_value is not None:
+            queryset = queryset.filter(points__gte=min_points_value)
 
         return queryset.order_by("-points", "name")
 
@@ -77,7 +144,11 @@ class DriverViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path=r"by-team/(?P<team_id>[^/.]+)")
     def by_team(self, request, team_id=None):
-        queryset = self.get_queryset().filter(team_id=team_id)
+        parsed_team_id = parse_optional_int_query_param(team_id, "team_id")
+        if parsed_team_id is None:
+            raise ValidationError({"team_id": ["This field is required."]})
+
+        queryset = self.get_queryset().filter(team_id=parsed_team_id)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -93,8 +164,9 @@ class SeasonViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Season.objects.annotate(race_count=Count("races"))
         year = self.request.query_params.get("year")
-        if year and year.isdigit():
-            queryset = queryset.filter(year=int(year))
+        year_value = parse_optional_int_query_param(year, "year")
+        if year_value is not None:
+            queryset = queryset.filter(year=year_value)
         return queryset
 
 
@@ -106,11 +178,13 @@ class RaceViewSet(viewsets.ModelViewSet):
         queryset = Race.objects.select_related("season").all().order_by("season__year", "round_number")
         season = self.request.query_params.get("season")
         country = self.request.query_params.get("country")
-        if season and season.isdigit():
-            if len(season) == 4:
-                queryset = queryset.filter(season__year=int(season))
+        season_value = parse_optional_int_query_param(season, "season")
+        if season_value is not None:
+            normalized_season = season.strip() if season else ""
+            if len(normalized_season) == 4:
+                queryset = queryset.filter(season__year=season_value)
             else:
-                queryset = queryset.filter(season_id=int(season))
+                queryset = queryset.filter(season_id=season_value)
         if country:
             queryset = queryset.filter(country__icontains=country)
         return queryset
@@ -126,19 +200,181 @@ class RaceResultViewSet(viewsets.ModelViewSet):
         season = self.request.query_params.get("season")
         driver_id = self.request.query_params.get("driver")
 
-        if race_id and race_id.isdigit():
-            queryset = queryset.filter(race_id=int(race_id))
-        if season and season.isdigit():
-            if len(season) == 4:
-                queryset = queryset.filter(race__season__year=int(season))
+        race_id_value = parse_optional_int_query_param(race_id, "race")
+        if race_id_value is not None:
+            queryset = queryset.filter(race_id=race_id_value)
+
+        season_value = parse_optional_int_query_param(season, "season")
+        if season_value is not None:
+            normalized_season = season.strip() if season else ""
+            if len(normalized_season) == 4:
+                queryset = queryset.filter(race__season__year=season_value)
             else:
-                queryset = queryset.filter(race__season_id=int(season))
-        if driver_id and driver_id.isdigit():
-            queryset = queryset.filter(driver_id=int(driver_id))
+                queryset = queryset.filter(race__season_id=season_value)
+
+        driver_id_value = parse_optional_int_query_param(driver_id, "driver")
+        if driver_id_value is not None:
+            queryset = queryset.filter(driver_id=driver_id_value)
 
         return queryset.order_by("race__race_date", "position")
 
 
+@method_decorator(csrf_protect, name="dispatch")
+class RegisterView(APIView):
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_register"
+
+    @extend_schema(request=RegisterSerializer, responses={201: AuthSessionResponseSerializer})
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+        response = Response({"user": build_auth_user_payload(user)}, status=status.HTTP_201_CREATED)
+        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        return response
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class LoginView(APIView):
+    serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_login"
+
+    @extend_schema(request=LoginSerializer, responses={200: AuthSessionResponseSerializer})
+    def post(self, request):
+        serializer = TokenObtainPairSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.user
+        access = serializer.validated_data["access"]
+        refresh = serializer.validated_data["refresh"]
+
+        response = Response({"user": build_auth_user_payload(user)}, status=status.HTTP_200_OK)
+        set_auth_cookies(response, access, refresh)
+        return response
+
+
+class TokenLoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_login"
+
+
+class TokenRefreshScopedView(TokenRefreshView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_refresh"
+
+ 
+@method_decorator(csrf_protect, name="dispatch")
+class SessionRefreshView(APIView):
+    serializer_class = RefreshTokenRequestSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_refresh"
+
+    @extend_schema(
+        request=RefreshTokenRequestSerializer,
+        responses={200: SessionRefreshResponseSerializer},
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
+            refresh_token = request.COOKIES.get(settings.JWT_AUTH_COOKIE_REFRESH, "")
+
+        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as exc:
+            raise InvalidToken(exc.args[0]) from exc
+
+        response = Response({"detail": "Session refreshed."}, status=status.HTTP_200_OK)
+        access = serializer.validated_data.get("access")
+        refresh = serializer.validated_data.get("refresh")
+        if isinstance(access, str):
+            effective_refresh = refresh if isinstance(refresh, str) else refresh_token
+            if isinstance(effective_refresh, str) and effective_refresh.strip():
+                set_auth_cookies(response, access, effective_refresh)
+        return response
+
+
+class AuthMeView(APIView):
+    serializer_class = AuthMeSerializer
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses={200: AuthMeSerializer})
+    def get(self, request):
+        user = request.user
+        return Response(build_auth_user_payload(user), status=status.HTTP_200_OK)
+
+
+class CsrfTokenView(APIView):
+    serializer_class = CsrfTokenSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_csrf"
+
+    @extend_schema(responses={200: CsrfTokenSerializer})
+    def get(self, request):
+        return Response({"csrfToken": get_token(request)}, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class LogoutView(APIView):
+    serializer_class = RefreshTokenRequestSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_logout"
+
+    @extend_schema(
+        request=RefreshTokenRequestSerializer,
+        responses={204: OpenApiResponse(description="Refresh token blacklisted.")},
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
+            refresh_token = request.COOKIES.get(settings.JWT_AUTH_COOKIE_REFRESH)
+
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
+            raise ValidationError({"refresh": ["This field is required."]})
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError as exc:
+            raise ValidationError({"refresh": ["Invalid or expired refresh token."]}) from exc
+
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        clear_auth_cookies(response)
+        return response
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="season",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Season year (YYYY) or season id. Uses latest season when omitted.",
+            required=False,
+        )
+    ],
+    responses={
+        200: DriverSeasonStandingsResponseSerializer,
+        404: DetailMessageSerializer,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def driver_season_standings(request):
@@ -171,6 +407,21 @@ def driver_season_standings(request):
     return Response({"season": season.year, "results": payload}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="season",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Season year (YYYY) or season id. Uses latest season when omitted.",
+            required=False,
+        )
+    ],
+    responses={
+        200: ConstructorSeasonStandingsResponseSerializer,
+        404: DetailMessageSerializer,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def constructor_season_standings(request):
@@ -197,6 +448,39 @@ def constructor_season_standings(request):
     return Response({"season": season.year, "results": payload}, status=status.HTTP_200_OK)
 
 
+@extend_schema(responses={200: HealthCheckSerializer, 503: HealthCheckSerializer})
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    database_ok = True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except DatabaseError:
+        database_ok = False
+
+    payload = {
+        "status": "ok" if database_ok else "degraded",
+        "service": "motorsport-api",
+        "database": database_ok,
+    }
+    response_status = status.HTTP_200_OK if database_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+    return Response(payload, status=response_status)
+
+
+@extend_schema(exclude=True)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@throttle_classes([])
+def metrics_export(request):
+    return HttpResponse(
+        render_metrics(),
+        content_type="text/plain; version=0.0.4; charset=utf-8",
+    )
+
+
+@extend_schema(responses={200: ApiStatsSerializer})
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def api_stats(request):

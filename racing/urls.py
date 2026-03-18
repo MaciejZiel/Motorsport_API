@@ -1,13 +1,20 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import (
+    AuthMeView,
+    CsrfTokenView,
     DriverViewSet,
+    LoginView,
+    LogoutView,
+    RegisterView,
     RaceResultViewSet,
     RaceViewSet,
+    SessionRefreshView,
     SeasonViewSet,
     TeamViewSet,
+    TokenLoginView,
+    TokenRefreshScopedView,
     api_stats,
     constructor_season_standings,
     driver_season_standings,
@@ -21,8 +28,14 @@ router.register("races", RaceViewSet, basename="race")
 router.register("results", RaceResultViewSet, basename="result")
 
 urlpatterns = [
-    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/csrf/", CsrfTokenView.as_view(), name="csrf_token"),
+    path("auth/login/", LoginView.as_view(), name="login"),
+    path("auth/me/", AuthMeView.as_view(), name="auth_me"),
+    path("auth/logout/", LogoutView.as_view(), name="logout"),
+    path("auth/register/", RegisterView.as_view(), name="register"),
+    path("auth/session/refresh/", SessionRefreshView.as_view(), name="session_refresh"),
+    path("auth/token/", TokenLoginView.as_view(), name="token_obtain_pair"),
+    path("auth/token/refresh/", TokenRefreshScopedView.as_view(), name="token_refresh"),
     path("stats/", api_stats, name="api-stats"),
     path("standings/drivers/", driver_season_standings, name="driver-season-standings"),
     path("standings/constructors/", constructor_season_standings, name="constructor-season-standings"),

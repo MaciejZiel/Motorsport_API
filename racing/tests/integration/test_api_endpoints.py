@@ -1,0 +1,632 @@
+from datetime import date
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.urls import reverse
+from django.test import override_settings
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+
+from racing.models import Driver, Race, RaceResult, Season, Team
+from racing.views import (
+    CsrfTokenView,
+    LoginView,
+    LogoutView,
+    RegisterView,
+    SessionRefreshView,
+    TokenLoginView,
+    TokenRefreshScopedView,
+)
+
+
+class MotorsportApiTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
+        self.team_red = Team.objects.create(name="Red Apex", country="Italy")
+        self.team_blue = Team.objects.create(name="Blue Arrow", country="UK")
+
+        self.driver_max = Driver.objects.create(name="Max Fast", team=self.team_red, points=410)
+        self.driver_luca = Driver.objects.create(name="Luca Stone", team=self.team_red, points=180)
+        self.driver_owen = Driver.objects.create(name="Owen Pace", team=self.team_blue, points=250)
+
+        self.season_2026 = Season.objects.create(year=2026, name="World Championship 2026")
+        self.race_1 = Race.objects.create(
+            season=self.season_2026,
+            round_number=1,
+            name="Australian Grand Prix",
+            country="Australia",
+            race_date=date(2026, 3, 15),
+        )
+        self.race_2 = Race.objects.create(
+            season=self.season_2026,
+            round_number=2,
+            name="Spanish Grand Prix",
+            country="Spain",
+            race_date=date(2026, 4, 19),
+        )
+
+        RaceResult.objects.create(race=self.race_1, driver=self.driver_max, position=1, points_earned=25)
+        RaceResult.objects.create(race=self.race_1, driver=self.driver_owen, position=2, points_earned=18)
+        RaceResult.objects.create(race=self.race_2, driver=self.driver_owen, position=1, points_earned=25)
+        RaceResult.objects.create(race=self.race_2, driver=self.driver_max, position=2, points_earned=18)
+
+        User = get_user_model()
+        self.user = User.objects.create_user(username="user", password="testpass123")
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@example.com", password="testpass123"
+        )
+
+    def _token_for(self, username, password):
+        response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": username, "password": password},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.client.cookies.pop(settings.JWT_AUTH_COOKIE_ACCESS, None)
+        self.client.cookies.pop(settings.JWT_AUTH_COOKIE_REFRESH, None)
+        return response.data["access"]
+
+    def _csrf_client(self) -> APIClient:
+        return APIClient(enforce_csrf_checks=True)
+
+    def _issue_csrf_token(self, client: APIClient) -> str:
+        response = client.get(reverse("api-v1:csrf_token"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn(settings.CSRF_COOKIE_NAME, response.cookies)
+        return response.data["csrfToken"]
+
+    def _session_login(self, client: APIClient, username: str, password: str):
+        csrf_token = self._issue_csrf_token(client)
+        response = client.post(
+            reverse("api-v1:login"),
+            {"username": username, "password": password},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response, csrf_token
+
+    def test_public_can_list_drivers(self):
+        response = self.client.get(reverse("api-v1:driver-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 3)
+
+    def test_swagger_alias_is_available(self):
+        response = self.client.get(reverse("schema-swagger-ui"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_root_redirects_to_swagger_docs(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("swagger-ui"))
+
+    def test_health_endpoint_reports_api_and_database_status(self):
+        response = self.client.get(reverse("api-health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["service"], "motorsport-api")
+        self.assertTrue(response.data["database"])
+        self.assertIn("Content-Security-Policy", response)
+        self.assertIn("X-Request-ID", response)
+
+    def test_metrics_endpoint_exposes_prometheus_payload(self):
+        self.client.get(reverse("api-health"))
+
+        response = self.client.get(reverse("api-metrics"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response["Content-Type"].startswith("text/plain"))
+        payload = response.content.decode("utf-8")
+        self.assertIn("motorsport_http_requests_total", payload)
+        self.assertIn("motorsport_http_request_duration_ms_sum", payload)
+        self.assertIn("motorsport_http_inflight_requests", payload)
+        self.assertIn('path="/api/health/"', payload)
+
+    def test_standings_are_sorted_descending(self):
+        response = self.client.get(reverse("api-v1:driver-standings"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        points = [item["points"] for item in response.data["results"]]
+        self.assertEqual(points, sorted(points, reverse=True))
+
+    def test_filter_drivers_by_team(self):
+        response = self.client.get(reverse("api-v1:driver-list"), {"team": self.team_red.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_filter_drivers_by_team_name(self):
+        response = self.client.get(reverse("api-v1:driver-list"), {"team_name": "Red"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_teams_list_exposes_driver_count(self):
+        response = self.client.get(reverse("api-v1:team-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        first_team = response.data["results"][0]
+        self.assertIn("driver_count", first_team)
+
+    def test_public_cannot_create_driver(self):
+        payload = {"name": "Guest Driver", "points": 10, "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_non_admin_cannot_create_driver(self):
+        token = self._token_for("user", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {"name": "Member Driver", "points": 55, "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_create_driver(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {"name": "Admin Driver", "points": 99, "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("points", response.data["errors"])
+
+    def test_admin_can_create_driver_without_points_field(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {"name": "Admin Driver", "team_id": self.team_red.id}
+        response = self.client.post(reverse("api-v1:driver-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["points"], 0)
+
+    def test_stats_endpoint(self):
+        response = self.client.get(reverse("api-v1:api-stats"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_teams"], 2)
+        self.assertEqual(response.data["total_drivers"], 3)
+        self.assertEqual(response.data["total_seasons"], 1)
+
+    def test_driver_season_standings(self):
+        response = self.client.get(reverse("api-v1:driver-season-standings"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["season"], 2026)
+        self.assertEqual(response.data["results"][0]["driver_name"], "Max Fast")
+        self.assertEqual(response.data["results"][0]["total_points"], 43)
+
+    def test_constructor_standings(self):
+        response = self.client.get(reverse("api-v1:constructor-season-standings"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["team_name"], "Blue Arrow")
+        self.assertEqual(response.data["results"][0]["total_points"], 43)
+
+    def test_results_filter_by_season(self):
+        response = self.client.get(reverse("api-v1:result-list"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 4)
+
+    def test_admin_can_create_race_result(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        new_driver = Driver.objects.create(name="Erik Volt", team=self.team_blue, points=0)
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": new_driver.id,
+            "position": 3,
+            "points_earned": 15,
+            "fastest_lap": False,
+        }
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_token_refresh_flow(self):
+        token_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+        refresh = token_response.data["refresh"]
+
+        refresh_response = self.client.post(
+            reverse("api-v1:token_refresh"),
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", refresh_response.data)
+
+    def test_login_sets_http_only_auth_cookies(self):
+        csrf_client = self._csrf_client()
+        response, _csrf_token = self._session_login(csrf_client, "admin", "testpass123")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["username"], "admin")
+        access_cookie = response.cookies.get(settings.JWT_AUTH_COOKIE_ACCESS)
+        refresh_cookie = response.cookies.get(settings.JWT_AUTH_COOKIE_REFRESH)
+        self.assertIsNotNone(access_cookie)
+        self.assertIsNotNone(refresh_cookie)
+        self.assertTrue(access_cookie["httponly"])
+        self.assertTrue(refresh_cookie["httponly"])
+        self.assertEqual(refresh_cookie["path"], settings.JWT_AUTH_COOKIE_REFRESH_PATH)
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
+
+    def test_session_refresh_uses_refresh_cookie_when_body_missing(self):
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+        csrf_token = self._issue_csrf_token(csrf_client)
+
+        refresh_response = csrf_client.post(
+            reverse("api-v1:session_refresh"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(refresh_response.data["detail"], "Session refreshed.")
+        self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, refresh_response.cookies)
+
+    def test_csrf_endpoint_sets_cookie(self):
+        response = self.client.get(reverse("api-v1:csrf_token"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("csrfToken", response.data)
+        self.assertIn(settings.CSRF_COOKIE_NAME, response.cookies)
+
+    def test_auth_me_requires_authentication(self):
+        response = self.client.get(reverse("api-v1:auth_me"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_auth_me_accepts_access_cookie_authentication(self):
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+
+        response = csrf_client.get(reverse("api-v1:auth_me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "admin")
+
+    def test_auth_me_returns_current_user_profile(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.get(reverse("api-v1:auth_me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "admin")
+        self.assertTrue(response.data["is_staff"])
+        self.assertTrue(response.data["is_superuser"])
+
+    def test_logout_blacklists_refresh_token(self):
+        token_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+        access = token_response.data["access"]
+        refresh = token_response.data["refresh"]
+
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        csrf_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        logout_response = csrf_client.post(
+            reverse("api-v1:logout"),
+            {"refresh": refresh},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        refresh_response = self.client.post(
+            reverse("api-v1:token_refresh"),
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(refresh_response.data["error"], "unauthorized")
+
+    def test_logout_accepts_refresh_cookie_and_clears_auth_cookies(self):
+        token_response = self.client.post(
+            reverse("api-v1:token_obtain_pair"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+        csrf_token = self._issue_csrf_token(csrf_client)
+
+        logout_response = csrf_client.post(
+            reverse("api-v1:logout"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, logout_response.cookies)
+        self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, logout_response.cookies)
+
+        refresh_response = csrf_client.post(
+            reverse("api-v1:session_refresh"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_logout_with_cookie_auth_requires_csrf_token(self):
+        csrf_client = APIClient(enforce_csrf_checks=True)
+
+        self._session_login(csrf_client, "admin", "testpass123")
+
+        response = csrf_client.post(reverse("api-v1:logout"), {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
+
+    def test_logout_requires_refresh_token(self):
+        token = self._token_for("admin", "testpass123")
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        csrf_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = csrf_client.post(
+            reverse("api-v1:logout"),
+            {},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("refresh", response.data["errors"])
+
+    def test_auth_endpoints_define_throttle_scopes(self):
+        self.assertEqual(LoginView.throttle_scope, "auth_login")
+        self.assertEqual(TokenLoginView.throttle_scope, "auth_login")
+        self.assertEqual(SessionRefreshView.throttle_scope, "auth_refresh")
+        self.assertEqual(TokenRefreshScopedView.throttle_scope, "auth_refresh")
+        self.assertEqual(RegisterView.throttle_scope, "auth_register")
+        self.assertEqual(LogoutView.throttle_scope, "auth_logout")
+        self.assertEqual(CsrfTokenView.throttle_scope, "auth_csrf")
+
+    def test_register_creates_user_and_starts_cookie_session(self):
+        payload = {
+            "username": "newfan",
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass123!",
+        }
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            payload,
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["user"]["username"], "newfan")
+        self.assertFalse(response.data["user"]["is_staff"])
+        self.assertIn("is_superuser", response.data["user"])
+        self.assertFalse(response.data["user"]["is_superuser"])
+        self.assertIn(settings.JWT_AUTH_COOKIE_ACCESS, response.cookies)
+        self.assertIn(settings.JWT_AUTH_COOKIE_REFRESH, response.cookies)
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
+        User = get_user_model()
+        self.assertTrue(User.objects.filter(username="newfan").exists())
+
+    def test_register_rejects_duplicate_username(self):
+        payload = {
+            "username": "user",
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass123!",
+        }
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            payload,
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("username", response.data["errors"])
+
+    def test_register_rejects_password_mismatch(self):
+        payload = {
+            "username": "newuser2",
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass124!",
+        }
+        csrf_client = self._csrf_client()
+        csrf_token = self._issue_csrf_token(csrf_client)
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            payload,
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("password_confirm", response.data["errors"])
+
+    def test_login_requires_csrf_token(self):
+        csrf_client = self._csrf_client()
+        self._issue_csrf_token(csrf_client)
+
+        response = csrf_client.post(
+            reverse("api-v1:login"),
+            {"username": "admin", "password": "testpass123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
+
+    def test_register_requires_csrf_token(self):
+        csrf_client = self._csrf_client()
+        self._issue_csrf_token(csrf_client)
+
+        response = csrf_client.post(
+            reverse("api-v1:register"),
+            {
+                "username": "csrf-user",
+                "password": "StrongPass123!",
+                "password_confirm": "StrongPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
+
+    def test_session_refresh_requires_csrf_token(self):
+        csrf_client = self._csrf_client()
+        self._session_login(csrf_client, "admin", "testpass123")
+
+        response = csrf_client.post(reverse("api-v1:session_refresh"), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()["error"], "forbidden")
+
+    def test_public_cannot_create_race(self):
+        payload = {
+            "name": "Monaco Grand Prix",
+            "country": "Monaco",
+            "round_number": 3,
+            "race_date": "2026-05-10",
+            "season_id": self.season_2026.id,
+        }
+        response = self.client.post(reverse("api-v1:race-list"), payload, format="json")
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_non_admin_cannot_create_race_result(self):
+        token = self._token_for("user", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": self.driver_luca.id,
+            "position": 3,
+            "points_earned": 15,
+            "fastest_lap": False,
+        }
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_races_filter_by_season_year(self):
+        response = self.client.get(reverse("api-v1:race-list"), {"season": 2026})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_results_filter_by_driver(self):
+        response = self.client.get(reverse("api-v1:result-list"), {"driver": self.driver_max.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_duplicate_race_position_is_rejected(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": self.driver_luca.id,
+            "position": 1,
+            "points_earned": 10,
+            "fastest_lap": False,
+        }
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertEqual(response.data["status_code"], status.HTTP_400_BAD_REQUEST)
+        self.assertIn("errors", response.data)
+
+    def test_duplicate_fastest_lap_per_race_is_rejected(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        RaceResult.objects.filter(race=self.race_1, driver=self.driver_max).update(fastest_lap=True)
+        payload = {
+            "race_id": self.race_1.id,
+            "driver_id": self.driver_luca.id,
+            "position": 3,
+            "points_earned": 15,
+            "fastest_lap": True,
+        }
+
+        response = self.client.post(reverse("api-v1:result-list"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+
+    def test_invalid_driver_min_points_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:driver-list"), {"min_points": "abc"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("min_points", response.data["errors"])
+
+    def test_invalid_race_season_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:race-list"), {"season": "latest"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("season", response.data["errors"])
+
+    def test_invalid_result_driver_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:result-list"), {"driver": "fast"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("driver", response.data["errors"])
+
+    def test_invalid_standings_season_filter_returns_bad_request(self):
+        response = self.client.get(reverse("api-v1:driver-season-standings"), {"season": "current"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("errors", response.data)
+        self.assertIn("season", response.data["errors"])
+
+    def test_driver_points_field_cannot_be_modified_via_api(self):
+        token = self._token_for("admin", "testpass123")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = self.client.patch(
+            reverse("api-v1:driver-detail", args=[self.driver_max.id]),
+            {"points": 999},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "bad_request")
+        self.assertIn("points", response.data["errors"])
+
+    def test_standings_without_season_use_latest(self):
+        season_2025 = Season.objects.create(year=2025, name="World Championship 2025")
+        race_old = Race.objects.create(
+            season=season_2025,
+            round_number=1,
+            name="Old GP",
+            country="Italy",
+            race_date=date(2025, 3, 1),
+        )
+        RaceResult.objects.create(race=race_old, driver=self.driver_luca, position=1, points_earned=99)
+
+        response = self.client.get(reverse("api-v1:driver-season-standings"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["season"], 2026)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+    def test_api_404_returns_structured_json(self):
+        response = self.client.get("/api/not-existing-endpoint/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.json()["error"], "not_found")
+        self.assertEqual(response.json()["status_code"], status.HTTP_404_NOT_FOUND)

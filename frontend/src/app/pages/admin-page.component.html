@@ -1,0 +1,34 @@
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="kicker">Operations</p>
+      <h1>Race Operations Desk</h1>
+      <p>Back-office shortcuts for curating championship data and season structure.</p>
+    </div>
+    <a class="admin-home-link" [href]="adminHomeUrl" target="_blank" rel="noopener">Open back-office</a>
+  </header>
+
+  <section class="panel intro-panel">
+    <p>
+      Use these shortcuts to jump straight into the editorial back-office while the public app stays read-focused.
+    </p>
+  </section>
+
+  <section class="panel summary-panel">
+    <p>{{ links.length }} operational modules available.</p>
+  </section>
+
+  <section class="panel links-panel">
+    <div class="links-grid">
+      @for (item of links; track item.href) {
+        <a class="admin-link-card" [href]="item.href" target="_blank" rel="noopener">
+          <div class="card-top">
+            <h2>{{ item.label }}</h2>
+            <span class="card-action">Open</span>
+          </div>
+          <p>{{ item.description }}</p>
+        </a>
+      }
+    </div>
+  </section>
+</div>

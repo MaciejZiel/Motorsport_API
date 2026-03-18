@@ -19,6 +19,7 @@ class DriverAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "team", "points")
     list_filter = ("team",)
     search_fields = ("name", "team__name")
+    readonly_fields = ("points",)
 
 
 @admin.register(Season)

@@ -1,0 +1,92 @@
+import { DOCUMENT } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { API_DOCS_URL } from './api.config';
+import { AuthService } from './core/auth.service';
+
+interface NavLink {
+  path: string;
+  label: string;
+  requiresAuth?: boolean;
+  requiresAdmin?: boolean;
+}
+
+type ThemeMode = 'light' | 'dark';
+
+const THEME_STORAGE_KEY = 'motorsport_theme';
+
+@Component({
+  selector: 'app-root',
+  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  templateUrl: './app.html',
+  styleUrl: './app.scss'
+})
+export class App {
+  private readonly document = inject(DOCUMENT);
+  private readonly router = inject(Router);
+  readonly auth = inject(AuthService);
+  readonly theme = signal<ThemeMode>(this.resolveInitialTheme());
+  readonly isDarkMode = computed(() => this.theme() === 'dark');
+
+  readonly title = 'Grand Prix Atlas';
+  readonly docsUrl = API_DOCS_URL;
+  readonly navLinks: NavLink[] = [
+    { path: '/', label: 'Dashboard' },
+    { path: '/admin', label: 'Admin', requiresAuth: true, requiresAdmin: true },
+    { path: '/drivers', label: 'Drivers' },
+    { path: '/teams', label: 'Teams' },
+    { path: '/races', label: 'Races' },
+  ];
+
+  constructor() {
+    this.applyTheme(this.theme());
+    this.auth.ensureCsrfToken().subscribe();
+    this.auth.ensureCurrentUser().subscribe();
+  }
+
+  toggleTheme(): void {
+    const nextTheme: ThemeMode = this.isDarkMode() ? 'light' : 'dark';
+    this.theme.set(nextTheme);
+    this.applyTheme(nextTheme);
+    this.persistTheme(nextTheme);
+  }
+
+  async handleLogout(): Promise<void> {
+    await firstValueFrom(this.auth.logout());
+    await this.router.navigateByUrl('/login');
+  }
+
+  private resolveInitialTheme(): ThemeMode {
+    if (typeof window === 'undefined') {
+      return 'light';
+    }
+
+    const requestedTheme = new URLSearchParams(window.location.search).get('theme');
+    if (requestedTheme === 'light' || requestedTheme === 'dark') {
+      return requestedTheme;
+    }
+
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+
+    return 'light';
+  }
+
+  private applyTheme(theme: ThemeMode): void {
+    this.document.documentElement.setAttribute('data-theme', theme);
+  }
+
+  private persistTheme(theme: ThemeMode): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }
+}
