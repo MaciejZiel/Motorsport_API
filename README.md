@@ -89,6 +89,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 - **Backend:** 103 pytest tests (unit + API integration), 93% line coverage. CI fails below 90%.
 - **Frontend:** 61 Vitest tests in 16 files. CI enforces a minimum line coverage of 66%.
 - **CI** also runs ruff, `pip-audit`, `npm audit`, a missing-migrations check, `manage.py check --deploy` with production settings, a frontend build and a Docker Compose smoke test that registers, logs in and logs out through the frontend proxy and checks that the API docs assets load.
+- **Security scanning:** CodeQL analyses the Python and TypeScript code on pushes and pull requests to `master` and weekly; Dependabot proposes grouped weekly updates for pip, npm, Docker images and GitHub Actions.
 
 ## Key technical decisions
 
