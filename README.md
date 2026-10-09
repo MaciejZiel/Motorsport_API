@@ -1,5 +1,7 @@
 # Motorsport API
 
+[![CI](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml)
+
 Portfolio-ready backend API built with Django and Django REST Framework.
 
 ## What this project demonstrates
