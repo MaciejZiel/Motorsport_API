@@ -3,6 +3,7 @@
 A Django REST API for a fictional motorsport championship (teams, drivers, seasons, races, results) with computed standings, cookie- or token-based JWT auth and an Angular dashboard on top.
 
 [![CI](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Django 6.0](https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white)
