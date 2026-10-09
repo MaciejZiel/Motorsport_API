@@ -48,7 +48,7 @@
     "@typescript-eslint/parser": "^8.55.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
-    "jsdom": "^27.1.0",
+    "jsdom": "^30.1.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"
   }
