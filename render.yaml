@@ -1,0 +1,51 @@
+# Render Blueprint: one-click deploy of the API with a managed PostgreSQL.
+# Spec: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: motorsport-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: sh scripts/render_start.sh
+    healthCheckPath: /api/health/
+    autoDeployTrigger: commit
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY_PART_1
+        generateValue: true
+      - key: DJANGO_SECRET_KEY_PART_2
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: motorsport-db
+          property: connectionString
+      # Render terminates TLS and forwards X-Forwarded-Proto; the health check
+      # stays exempt from the HTTPS redirect so it exercises the real DB check.
+      - key: DJANGO_SECURE_REDIRECT_EXEMPT
+        value: ^api/health/$
+      # HSTS is kept short for a demo on a shared onrender.com subdomain.
+      - key: DJANGO_SECURE_HSTS_SECONDS
+        value: "3600"
+      - key: DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS
+        value: "False"
+      - key: DJANGO_SECURE_HSTS_PRELOAD
+        value: "False"
+      # Seeds sample teams/drivers/races and a read-only (non-staff) demo user.
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: DEMO_USER_USERNAME
+        value: demo
+      # Public on purpose: the demo user cannot write (IsAdminOrReadOnly).
+      - key: DEMO_USER_PASSWORD
+        value: motorsport-demo
+
+databases:
+  - name: motorsport-db
+    databaseName: motorsport_api
+    user: motorsport
+    plan: free
+    postgresMajorVersion: "16"
