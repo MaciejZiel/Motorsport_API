@@ -95,6 +95,12 @@ if IS_PRODUCTION and DEBUG:
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
+# Render injects the public hostname of a web service at runtime. Trusting it
+# here lets the same image run locally and on Render without editing env vars.
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", False)
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
@@ -107,9 +113,16 @@ CORS_ALLOWED_ORIGINS = env_list(
 CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", False)
 CORS_URLS_REGEX = r"^/api/.*$"
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "")
+if RENDER_EXTERNAL_HOSTNAME:
+    render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
 CSRF_FAILURE_VIEW = "racing.error_views.csrf_failure"
 
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", IS_PRODUCTION)
+# Paths (regexes without the leading slash) served over plain HTTP even when
+# SSL redirect is on, e.g. "^api/health/$" for platform health checks.
+SECURE_REDIRECT_EXEMPT = env_list("DJANGO_SECURE_REDIRECT_EXEMPT", "")
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", IS_PRODUCTION)
 CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", IS_PRODUCTION)
 SECURE_HSTS_SECONDS = env_int("DJANGO_SECURE_HSTS_SECONDS", 31536000 if IS_PRODUCTION else 0)
@@ -146,6 +159,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
+    "drf_spectacular_sidecar",
     "racing.apps.RacingConfig",
 ]
 
@@ -205,6 +219,11 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Django REST API for motorsport data (F1-style).",
     "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Serve Swagger UI / ReDoc assets from our own static files instead of a
+    # CDN, so the docs work under the default `script-src 'self'` CSP.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
 }
 
 MIDDLEWARE = [

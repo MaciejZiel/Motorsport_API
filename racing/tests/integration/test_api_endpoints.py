@@ -98,6 +98,22 @@ class MotorsportApiTests(APITestCase):
         response = self.client.get(reverse("schema-swagger-ui"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_swagger_ui_is_compatible_with_strict_csp(self):
+        response = self.client.get(reverse("swagger-ui"))
+        html = response.content.decode()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("script-src 'self'", response["Content-Security-Policy"])
+        # Assets come from our own static files and the init script is a separate
+        # same-origin request, so nothing is blocked by the CSP.
+        self.assertNotIn("cdn.jsdelivr.net", html)
+        self.assertNotIn("<script>", html)
+        self.assertIn("/static/drf_spectacular_sidecar/swagger-ui-dist/swagger-ui-bundle.js", html)
+
+        init_script = self.client.get(reverse("swagger-ui"), {"script": ""})
+        self.assertEqual(init_script.status_code, status.HTTP_200_OK)
+        self.assertEqual(init_script["Content-Type"], "application/javascript")
+
     def test_root_redirects_to_swagger_docs(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
