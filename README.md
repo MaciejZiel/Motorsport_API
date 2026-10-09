@@ -3,6 +3,7 @@
 A Django REST API for a fictional motorsport championship (teams, drivers, seasons, races, results) with computed standings, cookie- or token-based JWT auth and an Angular dashboard on top.
 
 [![CI](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Django 6.0](https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white)
@@ -88,6 +89,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 - **Backend:** 103 pytest tests (unit + API integration), 93% line coverage. CI fails below 90%.
 - **Frontend:** 61 Vitest tests in 16 files. CI enforces a minimum line coverage of 66%.
 - **CI** also runs ruff, `pip-audit`, `npm audit`, a missing-migrations check, `manage.py check --deploy` with production settings, a frontend build and a Docker Compose smoke test that registers, logs in and logs out through the frontend proxy and checks that the API docs assets load.
+- **Security scanning:** CodeQL analyses the Python and TypeScript code on pushes and pull requests to `master` and weekly; Dependabot proposes grouped weekly updates for pip, npm, Docker images and GitHub Actions.
 
 ## Key technical decisions
 
