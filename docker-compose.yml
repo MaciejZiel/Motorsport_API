@@ -58,6 +58,9 @@ services:
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-60}
     volumes:
       - .:/app
+      # Keep collected static files out of the bind-mounted source tree, so the
+      # container user does not need write access to the host checkout.
+      - static_data:/app/staticfiles
     ports:
       - "8000:8000"
     depends_on:
@@ -81,3 +84,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  static_data:
