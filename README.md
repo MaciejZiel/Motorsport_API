@@ -10,7 +10,7 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 ![DRF](https://img.shields.io/badge/DRF-3.17-A30000)
 ![Angular 21](https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white)
 
-Live demo: coming soon — deploy with the button below
+**Live demo:** [https://motorsport-api-uxdr.onrender.com](https://motorsport-api-uxdr.onrender.com) — Swagger UI, read-only demo account `demo` / `motorsport-demo` (free tier: the first request after idle can take ~30 s)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MaciejZiel/Motorsport_API)
 
