@@ -269,3 +269,7 @@ npm --prefix frontend run start
 
 The frontend uses relative API paths (`/api/v1`) and `ng serve` proxy config.
 Default local proxy target is `http://127.0.0.1:8000`.
+
+## License
+
+Released under the [MIT License](LICENSE).
