@@ -45,6 +45,7 @@ echo "Building and starting compose stack..."
 
 wait_for_url "http://127.0.0.1:4200/" 80 2
 wait_for_url "http://127.0.0.1:4200/api/health/" 80 2
+wait_for_url "http://127.0.0.1:4200/static/drf_spectacular_sidecar/swagger-ui-dist/swagger-ui-bundle.js" 10 2
 
 echo "Fetching CSRF token..."
 curl -fsS -c "${cookie_jar}" "http://127.0.0.1:4200/api/v1/auth/csrf/" > /dev/null
