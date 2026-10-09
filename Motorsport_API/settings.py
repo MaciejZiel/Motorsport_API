@@ -159,6 +159,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
+    "drf_spectacular_sidecar",
     "racing.apps.RacingConfig",
 ]
 
@@ -218,6 +219,11 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Django REST API for motorsport data (F1-style).",
     "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Serve Swagger UI / ReDoc assets from our own static files instead of a
+    # CDN, so the docs work under the default `script-src 'self'` CSP.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
 }
 
 MIDDLEWARE = [
