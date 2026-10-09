@@ -4,6 +4,8 @@ Standalone Angular app connected to the Django API in the parent repository.
 
 ## Run in development
 
+Requires Node.js 24 LTS (pinned in `.nvmrc`; `engines` also accepts `^22.12.0`).
+
 From project root:
 
 ```bash
