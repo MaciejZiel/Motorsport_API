@@ -27,6 +27,7 @@ Portfolio-ready backend API built with Django and Django REST Framework.
 - PostgreSQL (production-like setup)
 - Redis (shared cache / throttling)
 - Docker + Docker Compose
+- Angular 21 frontend on Node.js 24 LTS
 
 ## Main endpoints
 - `GET/POST /api/v1/teams/`
@@ -262,7 +263,8 @@ bash scripts/e2e_compose_smoke.sh
 ```
 
 ## Frontend (Angular)
-Frontend app lives in `frontend/`.
+Frontend app lives in `frontend/` and requires Node.js 24 LTS (see `frontend/.nvmrc`;
+Angular 21 also supports `^22.12.0`).
 
 ```bash
 npm --prefix frontend install
