@@ -11,3 +11,4 @@ distributed under.
 | https://github.com/github/codeql-action | github/codeql-action v4.38.2 (CI only) | MIT | https://github.com/github/codeql-action/blob/main/LICENSE |
 | https://fonts.google.com/specimen/Saira (loaded from Google Fonts by the frontend) | Saira (variable, wdth/wght) | OFL-1.1 | https://github.com/Omnibus-Type/Saira/blob/master/OFL.txt |
 | https://fonts.google.com/specimen/IBM+Plex+Mono (loaded from Google Fonts by the frontend) | IBM Plex Mono | OFL-1.1 | https://github.com/IBM/plex/blob/master/LICENSE.txt |
+| https://github.com/actions/setup-python | actions/setup-python v7 (CI only) | MIT | https://github.com/actions/setup-python/blob/main/LICENSE |
