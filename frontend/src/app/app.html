@@ -1,57 +1,70 @@
-<div class="app-shell">
-  <header class="topbar">
-    <a class="brand" routerLink="/">
-      <span class="brand-badge">M</span>
-      <div>
-        <p class="brand-title">{{ title }}</p>
-        <p class="brand-subtitle">Season stories, standings and race intelligence</p>
-      </div>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="brand" routerLink="/" aria-label="Pit Wall, standings">
+      <svg class="brand-mark" viewBox="0 0 20 20" aria-hidden="true">
+        <rect x="0" y="0" width="5" height="5" />
+        <rect x="10" y="0" width="5" height="5" />
+        <rect x="5" y="5" width="5" height="5" />
+        <rect x="15" y="5" width="5" height="5" />
+        <rect x="0" y="10" width="5" height="5" />
+        <rect x="10" y="10" width="5" height="5" />
+      </svg>
+      <span class="brand-name">{{ title }}</span>
     </a>
 
-    <div class="topbar-right">
-      <button
-        class="theme-toggle"
-        type="button"
-        (click)="toggleTheme()"
-        [attr.aria-label]="isDarkMode() ? 'Switch to light mode' : 'Switch to dark mode'"
+    <nav class="nav" aria-label="Main">
+      @for (link of visibleLinks(); track link.path) {
+        <a
+          [routerLink]="link.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: !!link.exact }"
+          ariaCurrentWhenActive="page"
+        >
+          {{ link.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="bar-right">
+      <span
+        class="api-status"
+        [attr.data-status]="apiStatus.status()"
+        [attr.title]="statusLabel()"
+        [attr.aria-label]="statusLabel()"
+        role="status"
       >
-        @if (isDarkMode()) {
-          <span>Light mode</span>
-        } @else {
-          <span>Dark mode</span>
-        }
-      </button>
+        <span class="dot" aria-hidden="true"></span>
+        <span class="num">{{ statusLabel() }}</span>
+      </span>
 
-        <nav class="main-nav">
-          @for (link of navLinks; track link.path) {
-          @if (
-            (!link.requiresAuth || auth.isAuthenticated()) &&
-            (!link.requiresAdmin || auth.isAdmin())
-          ) {
-            <a
-              class="nav-link"
-              [routerLink]="link.path"
-              [routerLinkActiveOptions]="{ exact: link.path === '/' }"
-              routerLinkActive="active-link"
-            >
-              {{ link.label }}
-            </a>
-          }
-        }
-        <a class="nav-link docs-link" [href]="docsUrl" target="_blank" rel="noopener">API docs</a>
-        @if (!auth.isAuthenticated()) {
-          <a class="nav-link auth-link" routerLink="/login" routerLinkActive="active-link">Login</a>
-          <a class="nav-link auth-link" routerLink="/register" routerLinkActive="active-link">Register</a>
-        } @else {
-          <button class="nav-link auth-link logout-button" type="button" (click)="handleLogout()">
-            Logout
-          </button>
-        }
-      </nav>
+      @if (auth.user(); as user) {
+        <span class="session">
+          <span class="session-name">{{ user.username }}</span>
+          <span class="role" [class.is-staff]="auth.isAdmin()">{{ roleLabel() }}</span>
+        </span>
+        <button class="btn btn-quiet" type="button" (click)="signOut()">Sign out</button>
+      } @else {
+        <a class="btn" routerLink="/login">Sign in</a>
+      }
     </div>
-  </header>
+  </div>
+</header>
 
-  <main class="app-content">
-    <router-outlet></router-outlet>
-  </main>
-</div>
+<main id="main" tabindex="-1">
+  <router-outlet />
+</main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <p>
+      Every number on these screens comes from the Motorsport API. Team colours are assigned from
+      team names, since the API doesn't store liveries.
+    </p>
+    <p class="foot-links">
+      <a [href]="docsUrl" target="_blank" rel="noopener">API reference (Swagger)</a>
+      <a [href]="repoUrl" target="_blank" rel="noopener">Source on GitHub</a>
+    </p>
+  </div>
+</footer>
