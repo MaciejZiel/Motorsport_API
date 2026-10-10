@@ -1,0 +1,229 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="page-title">
+        @if (year(); as y) {
+          {{ y }} championship
+        } @else {
+          Championship
+        }
+      </h1>
+      @if (state() === 'ready' && year()) {
+        <p class="page-lede">
+          @if (lastRace(); as race) {
+            Standings after round {{ race.round_number }} of {{ board().races.length }},
+            the {{ race.name }} on {{ formatDate(race.race_date) }}.
+          } @else {
+            No rounds have been run yet this season.
+          }
+        </p>
+      }
+    </div>
+
+    @if (seasons().length > 1) {
+      <nav class="segmented" aria-label="Season">
+        @for (season of seasons(); track season.id) {
+          <a
+            [routerLink]="[]"
+            [queryParams]="{ season: season.year }"
+            [class.is-active]="season.year === year()"
+            [attr.aria-current]="season.year === year() ? 'page' : null"
+          >
+            {{ season.year }}
+          </a>
+        }
+      </nav>
+    }
+  </header>
+
+  <app-load-state
+    [state]="state()"
+    subject="the standings"
+    [message]="errorMessage()"
+    (retry)="load()"
+  />
+
+  @if (state() === 'ready') {
+    @if (!year()) {
+      <div class="notice">
+        <strong>No seasons yet</strong>
+        <p>The API has no seasons. Add one in the back-office to start a championship.</p>
+      </div>
+    } @else {
+      <div class="board">
+        <div class="main-col">
+        <section class="panel tower" aria-labelledby="drivers-title">
+          <div class="panel-head">
+            <h2 id="drivers-title">Drivers' championship</h2>
+            <span class="panel-note">{{ roundsRun() }} {{ roundsRun() === 1 ? 'round' : 'rounds' }} scored</span>
+          </div>
+          @if (tower().length) {
+            <div class="table-wrap">
+              <table class="data-table tower-table">
+                <caption class="visually-hidden">Drivers' championship, {{ year() }}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" class="pos">Pos</th>
+                    <th scope="col" class="chg"><span class="visually-hidden">Change since previous round</span></th>
+                    <th scope="col">Driver</th>
+                    <th scope="col" class="col-team">Team</th>
+                    <th scope="col" class="col-trend">Points by round</th>
+                    <th scope="col" class="r col-wins">Wins</th>
+                    <th scope="col" class="r col-pod">Podiums</th>
+                    <th scope="col" class="r">Pts</th>
+                    <th scope="col" class="r col-gap">Gap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of tower(); track row.driver_id) {
+                    <tr [style.--livery]="row.color">
+                      <td class="pos">{{ row.position }}</td>
+                      <td class="chg"><app-position-change [change]="row.change" /></td>
+                      <td>
+                        <a class="driver" [routerLink]="['/drivers', row.driver_id]">
+                          <span class="code">{{ row.code }}</span>
+                          <span class="driver-name">{{ row.driver_name }}</span>
+                        </a>
+                        <span class="team-sub">{{ row.team_name }}</span>
+                      </td>
+                      <td class="col-team muted">{{ row.team_name }}</td>
+                      <td class="col-trend">
+                        <app-sparkline
+                          [values]="row.trace"
+                          [max]="leaderPoints()"
+                          [color]="row.color"
+                          [label]="row.driver_name + ' points after each round: ' + row.trace.join(', ')"
+                        />
+                      </td>
+                      <td class="r num col-wins">{{ row.wins }}</td>
+                      <td class="r num col-pod">{{ row.podiums }}</td>
+                      <td class="r num pts">{{ row.total_points }}</td>
+                      <td class="r num col-gap muted">
+                        @if (row.gap === null) {
+                          Leader
+                        } @else if (row.gap === 0) {
+                          Tied
+                        } @else {
+                          −{{ row.gap }}
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty-line">No results have been recorded for {{ year() }} yet.</p>
+          }
+        </section>
+
+          <section class="panel" aria-labelledby="teams-title">
+            <div class="panel-head">
+              <h2 id="teams-title">Constructors</h2>
+              <a class="panel-note" routerLink="/teams">Teams</a>
+            </div>
+            @if (constructorRows().length) {
+              <div class="share" role="img" [attr.aria-label]="'Share of constructor points in ' + year()">
+                @for (row of constructorRows(); track row.team_id) {
+                  <span [style.flex-grow]="row.total_points" [style.background]="row.color"></span>
+                }
+              </div>
+              <table class="data-table">
+                <caption class="visually-hidden">Constructors' championship, {{ year() }}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" class="pos">Pos</th>
+                    <th scope="col">Team</th>
+                    <th scope="col" class="r">Wins</th>
+                    <th scope="col" class="r">Share</th>
+                    <th scope="col" class="r">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of constructorRows(); track row.team_id) {
+                    <tr [style.--livery]="row.color">
+                      <td class="pos">{{ row.position }}</td>
+                      <td>
+                        <a class="team-inline" [routerLink]="['/teams', row.team_id]">
+                          <span class="team-swatch"></span>{{ row.team_name }}
+                        </a>
+                      </td>
+                      <td class="r num">{{ row.wins }}</td>
+                      <td class="r num muted">{{ (row.share * 100).toFixed(0) }}%</td>
+                      <td class="r num pts">{{ row.total_points }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <p class="empty-line">No constructor points yet.</p>
+            }
+          </section>
+        </div>
+
+        <div class="side">
+          <section class="panel" aria-labelledby="last-title">
+            <div class="panel-head">
+              <h2 id="last-title">Last race</h2>
+              @if (lastRace(); as race) {
+                <a class="panel-note" [routerLink]="['/races', race.id]">Full classification</a>
+              }
+            </div>
+            @if (lastRace(); as race) {
+              <div class="race-id">
+                <span class="round num">R{{ race.round_number }}</span>
+                <div>
+                  <h3>{{ race.name }}</h3>
+                  <p class="muted">{{ race.country }}, {{ formatDate(race.race_date) }}</p>
+                </div>
+              </div>
+              <ol class="classification">
+                @for (result of lastClassification(); track result.id) {
+                  <li [style.--livery]="livery(result.driver.team.name)">
+                    <span class="num p">P{{ result.position }}</span>
+                    <a class="code" [routerLink]="['/drivers', result.driver.id]" [attr.aria-label]="result.driver.name">{{ code(result.driver.name) }}</a>
+                    <span class="muted team">{{ result.driver.team.name }}</span>
+                    @if (result.fastest_lap) {
+                      <span class="fastest-lap" title="Fastest lap"><span class="fl-long">Fastest lap</span><span class="fl-short" aria-hidden="true">FL</span></span>
+                    }
+                    <span class="num r">+{{ result.points_earned }}</span>
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="empty-line">The first race of {{ year() }} hasn't been run.</p>
+            }
+          </section>
+
+          <section class="panel" aria-labelledby="next-title">
+            <div class="panel-head">
+              <h2 id="next-title">Next race</h2>
+            </div>
+            @if (upcoming(); as race) {
+              <div class="race-id">
+                <span class="round num">R{{ race.round_number }}</span>
+                <div>
+                  <h3><a [routerLink]="['/races', race.id]">{{ race.name }}</a></h3>
+                  <p class="muted">{{ race.country }}, {{ formatDate(race.race_date) }}</p>
+                </div>
+                <p class="countdown num">
+                  @if (upcomingInDays() === 0) {
+                    Today
+                  } @else {
+                    {{ upcomingInDays() }}<small>{{ upcomingInDays() === 1 ? 'day' : 'days' }}</small>
+                  }
+                </p>
+              </div>
+            } @else {
+              <p class="empty-line">
+                Nothing scheduled. All {{ board().races.length }} rounds of the {{ year() }} calendar
+                have been run. <a routerLink="/races">See the calendar</a>
+              </p>
+            }
+          </section>
+
+        </div>
+      </div>
+    }
+  }
+</div>

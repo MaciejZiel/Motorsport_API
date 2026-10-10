@@ -1,173 +1,158 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
-import { formatApiDate } from '../core/date-format.utils';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { isUpcoming } from '../core/championship';
+import { AuthService } from '../core/auth.service';
+import { formatDayMonth } from '../core/date-format.utils';
 import { MotorsportApiService } from '../core/motorsport-api.service';
-import { Race } from '../core/motorsport-api.types';
-import { reportUiError } from '../core/ui-error.utils';
+import { Race, RaceResult, Season } from '../core/motorsport-api.types';
+import { driverCode, teamColor } from '../core/team-identity';
+import { apiErrorMessages, reportUiError } from '../core/ui-error.utils';
+import { LoadState, LoadStateComponent } from '../shared/load-state.component';
 
-type LoadState = 'loading' | 'ready' | 'error';
+export type WriteState = 'idle' | 'saving' | 'saved' | 'error';
 
 @Component({
   selector: 'app-races-page',
-  imports: [FormsModule, RouterLink],
+  imports: [RouterLink, ReactiveFormsModule, LoadStateComponent],
   templateUrl: './races-page.component.html',
   styleUrl: './races-page.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RacesPageComponent {
   private readonly api = inject(MotorsportApiService);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-  private readonly pageSize = 10;
-  readonly formatRaceDate = formatApiDate;
+  readonly auth = inject(AuthService);
+
+  readonly dayMonth = formatDayMonth;
 
   readonly state = signal<LoadState>('loading');
-  readonly errorMessage = signal<string | null>(null);
-  readonly totalCount = signal(0);
+  readonly seasons = signal<Season[]>([]);
   readonly races = signal<Race[]>([]);
-  readonly currentPage = signal(1);
-  readonly hasNextPage = signal(false);
-  readonly hasPreviousPage = signal(false);
+  readonly results = signal<RaceResult[]>([]);
 
-  seasonFilter: string | number | null = '';
-  countryFilter = '';
+  readonly writeState = signal<WriteState>('idle');
+  readonly writeMessage = signal<string | null>(null);
+
+  readonly form = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
+    country: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
+    seasonId: new FormControl<number | null>(null, { validators: [Validators.required] }),
+    round: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(1)] }),
+    date: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+  });
+
+  readonly calendar = computed(() => {
+    const winners = new Map<number, RaceResult>();
+    const classified = new Set<number>();
+    for (const result of this.results()) {
+      classified.add(result.race.id);
+      if (result.position === 1) {
+        winners.set(result.race.id, result);
+      }
+    }
+    const years = [...new Set(this.races().map((race) => race.season_year))].sort((a, b) => b - a);
+    return years.map((year) => ({
+      year,
+      races: this.races()
+        .filter((race) => race.season_year === year)
+        .sort((a, b) => a.round_number - b.round_number)
+        .map((race) => {
+          const winner = winners.get(race.id);
+          return {
+            ...race,
+            status: classified.has(race.id) ? 'finished' : isUpcoming(race) ? 'upcoming' : 'pending',
+            winner: winner
+              ? {
+                  id: winner.driver.id,
+                  name: winner.driver.name,
+                  code: driverCode(winner.driver.name),
+                  team: winner.driver.team.name,
+                  color: teamColor(winner.driver.team.name),
+                }
+              : null,
+          };
+        }),
+    }));
+  });
 
   constructor() {
-    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
-      this.seasonFilter = params.get('season') ?? '';
-      this.countryFilter = params.get('country') ?? '';
-      const page = this.parseOptionalPositiveInteger(params.get('page') ?? '') ?? 1;
-      void this.reloadData(page);
-    });
+    this.load();
   }
 
-  async reloadData(page: number = this.currentPage()): Promise<void> {
-    const targetPage = page > 0 ? page : 1;
+  load(): void {
     this.state.set('loading');
-    this.errorMessage.set(null);
-
-    try {
-      const response = await firstValueFrom(
-        this.api.getRaces({
-          page: targetPage,
-          season: this.parseOptionalPositiveInteger(this.seasonFilter),
-          country: this.countryFilter,
-        })
-      );
-      this.totalCount.set(response.count);
-      this.races.set(response.results);
-      this.currentPage.set(targetPage);
-      this.hasNextPage.set(Boolean(response.next));
-      this.hasPreviousPage.set(Boolean(response.previous));
-      this.state.set('ready');
-    } catch (error) {
-      reportUiError(error);
-      this.totalCount.set(0);
-      this.races.set([]);
-      this.hasNextPage.set(false);
-      this.hasPreviousPage.set(false);
-      this.errorMessage.set(this.resolveErrorMessage(error));
-      this.state.set('error');
-    }
-  }
-
-  applyFilters(): void {
-    void this.navigateWithQueryParams(1);
-  }
-
-  clearFilters(): void {
-    this.seasonFilter = '';
-    this.countryFilter = '';
-    void this.navigateWithQueryParams(1);
-  }
-
-  goToNextPage(): void {
-    if (!this.hasNextPage()) {
-      return;
-    }
-    void this.navigateWithQueryParams(this.currentPage() + 1);
-  }
-
-  goToPreviousPage(): void {
-    if (!this.hasPreviousPage()) {
-      return;
-    }
-    void this.navigateWithQueryParams(this.currentPage() - 1);
-  }
-
-  rowNumber(index: number): number {
-    return (this.currentPage() - 1) * this.pageSize + index + 1;
-  }
-
-  hasActiveFilters(): boolean {
-    return Boolean(
-      this.parseOptionalPositiveInteger(this.seasonFilter) !== undefined || this.countryFilter.trim()
-    );
-  }
-
-  emptyStateMessage(): string {
-    if (this.hasActiveFilters()) {
-      return 'No races match current filters.';
-    }
-    return 'No races available yet.';
-  }
-
-  private parseOptionalPositiveInteger(value: string | number | null | undefined): number | undefined {
-    if (value === null || value === undefined) {
-      return undefined;
-    }
-
-    const parsed = typeof value === 'number' ? value : Number(value.trim());
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      return undefined;
-    }
-    return parsed;
-  }
-
-  private resolveErrorMessage(error: unknown): string {
-    if (error instanceof HttpErrorResponse) {
-      if (error.status === 0) {
-        return 'Race weekend data is temporarily unavailable.';
-      }
-
-      const payload = error.error;
-      if (payload && typeof payload === 'object' && 'detail' in payload) {
-        const detail = String((payload as { detail: unknown }).detail ?? '').trim();
-        if (detail) {
-          return detail;
+    forkJoin({
+      seasons: this.api.getSeasons(),
+      races: this.api.getRaces(),
+      results: this.api.getResults(),
+    }).subscribe({
+      next: ({ seasons, races, results }) => {
+        this.seasons.set([...seasons].sort((a, b) => b.year - a.year));
+        this.races.set(races);
+        this.results.set(results);
+        if (this.form.controls.seasonId.value === null && seasons.length) {
+          this.form.controls.seasonId.setValue(this.seasons()[0].id);
         }
-      }
-    }
-    return 'We could not load the race calendar.';
-  }
-
-  private async navigateWithQueryParams(page: number): Promise<void> {
-    await this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: this.buildQueryParams(page),
+        this.state.set('ready');
+      },
+      error: (error: unknown) => {
+        reportUiError(error);
+        this.state.set('error');
+      },
     });
   }
 
-  private buildQueryParams(page: number): Params {
-    const queryParams: Params = {};
-    const safePage = page > 0 ? page : 1;
-    if (safePage > 1) {
-      queryParams['page'] = safePage;
+  addRace(): void {
+    if (!this.auth.isAdmin() || this.writeState() === 'saving') {
+      return;
+    }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
     }
 
-    const season = this.parseOptionalPositiveInteger(this.seasonFilter);
-    if (season !== undefined) {
-      queryParams['season'] = season;
-    }
+    const value = this.form.getRawValue();
+    this.writeState.set('saving');
+    this.writeMessage.set(null);
 
-    const country = this.countryFilter.trim();
-    if (country) {
-      queryParams['country'] = country;
-    }
+    this.api
+      .createRace({
+        name: value.name.trim(),
+        country: value.country.trim(),
+        season_id: Number(value.seasonId),
+        round_number: Number(value.round),
+        race_date: value.date,
+      })
+      .subscribe({
+        next: (race) => {
+          this.races.update((races) => [...races, race]);
+          this.writeState.set('saved');
+          this.writeMessage.set(`Added the ${race.name} as round ${race.round_number} of ${race.season_year}.`);
+          this.form.reset({ seasonId: value.seasonId });
+        },
+        error: (error: unknown) => {
+          reportUiError(error);
+          this.writeState.set('error');
+          this.writeMessage.set(this.describeWriteError(error));
+        },
+      });
+  }
 
-    return queryParams;
+  private describeWriteError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 401) {
+        return 'Your session has expired. Sign in again to add races.';
+      }
+      if (error.status === 403) {
+        return 'The API refused the change (403): this account can read data but not edit it.';
+      }
+      const details = apiErrorMessages(error);
+      if (error.status === 400 && details.length) {
+        return `The API rejected the race: ${details.join(' ')}`;
+      }
+    }
+    return "The race wasn't saved because the API didn't respond. Try again.";
   }
 }

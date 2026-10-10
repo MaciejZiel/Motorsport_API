@@ -10,7 +10,7 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 ![DRF](https://img.shields.io/badge/DRF-3.17-A30000)
 ![Angular 21](https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white)
 
-![Demo: dashboard, driver filters, race calendar, dark mode and a live request in Swagger UI](docs/demo.gif)
+![Demo: championship standings, a driver profile, the race calendar and a race classification, then signing in as the read-only demo user](docs/demo.gif)
 
 ## What it does
 
@@ -18,7 +18,7 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 - **Standings and stats**: driver and constructor standings per season (points, wins, podiums) are computed with SQL aggregation; `/api/v1/stats/` summarises the whole dataset.
 - **Two ways to authenticate**: browser sessions get JWTs in `HttpOnly` cookies with CSRF protection; API clients use classic Bearer tokens. Refresh tokens rotate and are blacklisted on logout. Reads are public, writes need a staff account.
 - **Production plumbing**: OpenAPI docs (Swagger UI / ReDoc), health check, Prometheus metrics, `X-Request-ID` tracing in responses and logs, throttling, a strict Content-Security-Policy and env-driven HTTPS settings.
-- **Angular 21 frontend** (dashboard, drivers, teams, races, login/register, dark mode) served by Nginx, which proxies `/api/` to Django.
+- **Angular 21 frontend** ("Pit Wall": live standings with a timing tower, driver profiles with a points chart, race calendar and classifications, teams, one-click read-only demo sign-in, staff-only add-race form) served by Nginx, which proxies `/api/` to Django. Every number on screen comes from the API.
 
 ## Architecture
 
@@ -83,7 +83,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 ```
 
 - **Backend:** 103 pytest tests (unit + API integration), 93% line coverage. CI fails below 90%.
-- **Frontend:** 61 Vitest tests in 16 files. CI enforces a minimum line coverage of 66%.
+- **Frontend:** 83 Vitest tests in 17 files, including component tests for every screen. CI enforces a minimum line coverage of 66%.
 - **CI** also runs ruff, `pip-audit`, `npm audit`, a missing-migrations check, `manage.py check --deploy` with production settings, a frontend build and a Docker Compose smoke test that registers, logs in and logs out through the frontend proxy and checks that the API docs assets load.
 - **Security scanning:** CodeQL analyses the Python and TypeScript code on pushes and pull requests to `master` and weekly; Dependabot proposes grouped weekly updates for pip, npm, Docker images and GitHub Actions.
 
@@ -112,11 +112,21 @@ Self-hosted production (GHCR images, Compose, rollback, backups, monitoring) is 
 
 ## Screenshots
 
-| Dashboard | Drivers |
+| Standings | Driver profile |
 | --- | --- |
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Drivers list with filters](docs/screenshots/drivers-list.png) |
-| **Dark mode** | **Swagger UI** |
-| ![Dark mode dashboard](docs/screenshots/dashboard-dark.png) | ![Swagger UI](docs/screenshots/swagger.png) |
+| ![Drivers' and constructors' standings with last and next race](docs/screenshots/standings.png) | ![Driver profile with points progression chart](docs/screenshots/driver.png) |
+| **Race classification** | **Calendar (signed in as the read-only demo user)** |
+| ![Race classification with podium](docs/screenshots/race.png) | ![Calendar with the staff-only form locked](docs/screenshots/calendar-demo.png) |
+| **Teams** | **Sign in** |
+| ![Teams with line-ups](docs/screenshots/teams.png) | ![Sign-in page with the demo button](docs/screenshots/login.png) |
+
+At 390 px (phone):
+
+![Standings, driver, calendar, race and teams screens at 390 px](docs/screenshots/mobile.png)
+
+Swagger UI:
+
+![Swagger UI](docs/screenshots/swagger.png)
 
 ## Limitations and next steps
 
