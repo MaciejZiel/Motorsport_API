@@ -1,74 +1,74 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
-interface AdminLink {
-  label: string;
-  href: string;
-  description: string;
-}
-
-interface AdminLinkConfig {
+interface BackOfficeSection {
   label: string;
   path: string;
   description: string;
 }
 
+/** Django admin lives on the API server; in `ng serve` that's port 8000. */
+export function backOfficeUrl(path: string, location: Pick<Location, 'protocol' | 'hostname' | 'port'> | null = typeof window === 'undefined' ? null : window.location): string {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  if (location?.port === '4200') {
+    return `${location.protocol}//${location.hostname}:8000${normalized}`;
+  }
+  return normalized;
+}
+
 @Component({
   selector: 'app-admin-page',
-  templateUrl: './admin-page.component.html',
-  styleUrl: './admin-page.component.scss',
+  imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="page">
+      <header class="page-head">
+        <div>
+          <h1 class="page-title">Admin</h1>
+          <p class="page-lede">
+            Records are edited in the Django back-office. Race calendar entries can also be added
+            from the <a routerLink="/races">calendar</a>.
+          </p>
+        </div>
+        <a class="btn btn-primary" [href]="home" target="_blank" rel="noopener">Open back-office</a>
+      </header>
+
+      <section class="panel">
+        <table class="data-table">
+          <caption class="visually-hidden">Back-office sections</caption>
+          <thead>
+            <tr><th scope="col">Section</th><th scope="col">What you can change</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
+          </thead>
+          <tbody>
+            @for (section of sections; track section.path) {
+              <tr>
+                <td class="label">{{ section.label }}</td>
+                <td class="muted">{{ section.description }}</td>
+                <td class="r">
+                  <a [href]="section.href" target="_blank" rel="noopener">Open {{ section.label.toLowerCase() }}</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    </div>
+  `,
+  styles: `
+    .label { font-weight: 600; white-space: nowrap; }
+    .page-lede a { color: var(--text); }
+  `,
 })
 export class AdminPageComponent {
-  private readonly linkConfigs: AdminLinkConfig[] = [
-    {
-      label: 'Users',
-      path: '/admin/auth/user/',
-      description: 'Manage user accounts and permissions.',
-    },
-    {
-      label: 'Teams',
-      path: '/admin/racing/team/',
-      description: 'Create, edit, and remove teams.',
-    },
-    {
-      label: 'Drivers',
-      path: '/admin/racing/driver/',
-      description: 'Manage drivers and team assignments.',
-    },
-    {
-      label: 'Seasons',
-      path: '/admin/racing/season/',
-      description: 'Manage seasons used by races.',
-    },
-    {
-      label: 'Races',
-      path: '/admin/racing/race/',
-      description: 'Create and edit race calendar entries.',
-    },
-    {
-      label: 'Race Results',
-      path: '/admin/racing/raceresult/',
-      description: 'Maintain race result records.',
-    },
+  private readonly config: BackOfficeSection[] = [
+    { label: 'Users', path: '/admin/auth/user/', description: 'Accounts and staff rights.' },
+    { label: 'Teams', path: '/admin/racing/team/', description: 'Team names and countries.' },
+    { label: 'Drivers', path: '/admin/racing/driver/', description: 'Drivers and their team.' },
+    { label: 'Seasons', path: '/admin/racing/season/', description: 'Championship years.' },
+    { label: 'Races', path: '/admin/racing/race/', description: 'Calendar rounds and dates.' },
+    { label: 'Race results', path: '/admin/racing/raceresult/', description: 'Classifications, points and fastest laps.' },
   ];
-  readonly adminHomeUrl = this.toBackendAdminUrl('/admin/');
-  readonly links: AdminLink[] = this.linkConfigs.map((item) => ({
-    label: item.label,
-    href: this.toBackendAdminUrl(item.path),
-    description: item.description,
-  }));
 
-  private toBackendAdminUrl(path: string): string {
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-    if (typeof window === 'undefined') {
-      return normalizedPath;
-    }
-
-    const { protocol, hostname, port } = window.location;
-    if (port === '4200') {
-      return `${protocol}//${hostname}:8000${normalizedPath}`;
-    }
-
-    return normalizedPath;
-  }
+  readonly home = backOfficeUrl('/admin/');
+  readonly sections = this.config.map((section) => ({ ...section, href: backOfficeUrl(section.path) }));
 }

@@ -1,82 +1,57 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, of, throwError } from 'rxjs';
-import { MotorsportApiService } from '../core/motorsport-api.service';
+import { of, throwError } from 'rxjs';
+import { vi } from 'vitest';
+import { createApiMock, ApiMock } from '../testing/fixtures';
+import { openPage, setupPage } from '../testing/harness';
 import { DriverDetailPageComponent } from './driver-detail-page.component';
 
 describe('DriverDetailPageComponent', () => {
-  let fixture: ComponentFixture<DriverDetailPageComponent>;
-  let component: DriverDetailPageComponent;
-  let getDriverByIdSpy: ReturnType<typeof vi.fn>;
-  let params$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let api: ApiMock;
 
-  beforeEach(async () => {
-    params$ = new BehaviorSubject(convertToParamMap({ id: '1' }));
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    getDriverByIdSpy = vi.fn().mockReturnValue(
-      of({
-        id: 1,
-        name: 'Max Fast',
-        points: 250,
-        team: { id: 1, name: 'Red Apex', country: 'Italy' },
-      })
-    );
-
-    await TestBed.configureTestingModule({
-      imports: [DriverDetailPageComponent],
-      providers: [
-        {
-          provide: MotorsportApiService,
-          useValue: {
-            getDriverById: getDriverByIdSpy,
-          },
-        },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            paramMap: params$.asObservable(),
-          },
-        },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(DriverDetailPageComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    await fixture.whenStable();
+  beforeEach(() => {
+    api = createApiMock();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    setupPage(api, [{ path: 'drivers/:id', component: DriverDetailPageComponent }]);
   });
 
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
+  afterEach(() => vi.restoreAllMocks());
+
+  it('shows the driver, career totals, the chart and every result in order', async () => {
+    const { page, el } = await openPage('/drivers/1', DriverDetailPageComponent);
+
+    expect(api.getResults).toHaveBeenCalledWith({ driver: 1 });
+    expect(el.querySelector('h1')?.textContent).toContain('Max Fast');
+    expect(el.querySelector('.big-code')?.textContent).toContain('FAS');
+    expect(page.totals()).toEqual({ starts: 3, wins: 2, podiums: 3, fastestLaps: 1, best: 1 });
+    expect(page.chartEntries().map((entry) => entry.points)).toEqual([25, 18, 25]);
+    expect(page.seasons().map((s) => [s.season, s.points])).toEqual([
+      [2026, 43],
+      [2025, 25],
+    ]);
+    expect(el.querySelector('app-points-chart svg')).not.toBeNull();
+    expect(el.querySelectorAll('.data-table tbody tr').length).toBe(2 + 3);
   });
 
-  it('loads driver details for valid route id', () => {
-    expect(getDriverByIdSpy).toHaveBeenCalledWith(1);
-    expect(component.state()).toBe('ready');
-    expect(component.driver()?.name).toBe('Max Fast');
-    expect(component.errorMessage()).toBeNull();
+  it('explains when the driver has no results', async () => {
+    api.getResults.mockReturnValue(of([]));
+    const { el } = await openPage('/drivers/1', DriverDetailPageComponent);
+
+    expect(el.textContent).toContain('No race results yet');
+    expect(el.querySelector('app-points-chart')).toBeNull();
   });
 
-  it('shows not found message when API returns 404', async () => {
-    getDriverByIdSpy.mockReturnValueOnce(
-      throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found' }))
-    );
+  it('reports a missing driver', async () => {
+    api.getDriverById.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    const { page } = await openPage('/drivers/42', DriverDetailPageComponent);
 
-    params$.next(convertToParamMap({ id: '9' }));
-    await fixture.whenStable();
-
-    expect(component.state()).toBe('error');
-    expect(component.errorMessage()).toBe('Driver not found.');
+    expect(page.state()).toBe('error');
+    expect(page.errorMessage()).toContain('No driver with this id');
   });
 
-  it('handles invalid route id without API call', async () => {
-    params$.next(convertToParamMap({ id: 'abc' }));
-    await fixture.whenStable();
+  it('rejects a malformed id without calling the API', async () => {
+    const { page } = await openPage('/drivers/abc', DriverDetailPageComponent);
 
-    expect(component.state()).toBe('error');
-    expect(component.errorMessage()).toBe('Invalid driver id in URL.');
-    expect(getDriverByIdSpy).toHaveBeenCalledTimes(1);
+    expect(page.state()).toBe('error');
+    expect(api.getDriverById).not.toHaveBeenCalled();
   });
 });

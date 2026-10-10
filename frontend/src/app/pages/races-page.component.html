@@ -1,94 +1,114 @@
-<div class="page-shell">
-  <header class="page-header">
+<div class="page">
+  <header class="page-head">
     <div>
-      <p class="kicker">Races</p>
-      <h1>Race Calendar</h1>
-      <p>Read-only data from <code>/api/v1/races/</code>.</p>
+      <h1 class="page-title">Calendar</h1>
+      <p class="page-lede">Every round in the database, newest season first, with the winner of each race.</p>
     </div>
-    <button type="button" (click)="reloadData()" [disabled]="state() === 'loading'">Reload</button>
   </header>
 
-  <section class="panel filters-panel">
-    <form class="filters-grid" (ngSubmit)="applyFilters()">
-      <label>
-        Season (year or id)
-        <input type="number" min="1" [(ngModel)]="seasonFilter" name="seasonFilter" placeholder="e.g. 2026" />
-      </label>
+  <app-load-state [state]="state()" subject="the calendar" (retry)="load()" />
 
-      <label>
-        Country
-        <input type="text" [(ngModel)]="countryFilter" name="countryFilter" placeholder="e.g. Italy" />
-      </label>
-
-      <div class="filters-actions">
-        <button type="submit" [disabled]="state() === 'loading'">Apply filters</button>
-        <button type="button" (click)="clearFilters()" [disabled]="state() === 'loading'">Clear</button>
-      </div>
-    </form>
-  </section>
-
-  @if (state() === 'loading') {
-    <section class="panel muted-panel">Loading races...</section>
-  } @else if (state() === 'error') {
-    <section class="panel error-panel">
-      <p>{{ errorMessage() }}</p>
-      <div class="message-actions">
-        <button type="button" (click)="reloadData()">Retry</button>
-        @if (hasActiveFilters()) {
-          <button type="button" class="secondary-btn" (click)="clearFilters()">Clear filters</button>
+  @if (state() === 'ready') {
+    <div class="layout">
+      <div class="seasons">
+        @for (season of calendar(); track season.year) {
+          <section class="panel" [attr.aria-labelledby]="'season-' + season.year">
+            <div class="panel-head">
+              <h2 [id]="'season-' + season.year">{{ season.year }} season</h2>
+              <a class="panel-note" routerLink="/" [queryParams]="{ season: season.year }">Standings</a>
+            </div>
+            <ol class="rounds">
+              @for (race of season.races; track race.id) {
+                <li [attr.data-status]="race.status">
+                  <span class="rd num">R{{ race.round_number }}</span>
+                  <span class="date num">{{ dayMonth(race.race_date) }}</span>
+                  <span class="gp">
+                    <a [routerLink]="['/races', race.id]">{{ race.name }}</a>
+                    <span class="muted">{{ race.country }}</span>
+                  </span>
+                  <span class="outcome">
+                    @if (race.winner; as w) {
+                      <span class="code" [style.--livery]="w.color" [attr.aria-label]="'Winner ' + w.name">{{ w.code }}</span>
+                      <span class="muted winner-team">{{ w.team }}</span>
+                    } @else if (race.status === 'upcoming') {
+                      <span class="tag upcoming">Upcoming</span>
+                    } @else {
+                      <span class="tag">No results</span>
+                    }
+                  </span>
+                </li>
+              }
+            </ol>
+          </section>
+        } @empty {
+          <div class="notice">
+            <strong>The calendar is empty</strong>
+            <p>No races have been added yet.</p>
+          </div>
         }
       </div>
-    </section>
-  } @else {
-    @if (races().length === 0) {
-      <section class="panel empty-panel">
-        <p>{{ emptyStateMessage() }}</p>
-        <div class="message-actions">
-          <button type="button" (click)="reloadData()">Retry</button>
-          @if (hasActiveFilters()) {
-            <button type="button" class="secondary-btn" (click)="clearFilters()">Clear filters</button>
+
+      <aside class="panel admin" aria-labelledby="add-race-title">
+        <div class="panel-head">
+          <h2 id="add-race-title">Add a race</h2>
+          <span class="lock" [class.is-open]="auth.isAdmin()">{{ auth.isAdmin() ? 'Staff' : 'Staff only' }}</span>
+        </div>
+        <div class="panel-body">
+          @if (!auth.isAuthenticated()) {
+            <p class="gate">Sign in with a staff account to add races to the calendar.</p>
+            <a class="btn" routerLink="/login" [queryParams]="{ next: '/races' }">Sign in</a>
+          } @else if (!auth.isAdmin()) {
+            <p class="gate">
+              You're signed in as <strong>{{ auth.user()?.username }}</strong>, a read-only account.
+              The API only accepts calendar changes from staff, so this form is locked.
+            </p>
+          }
+
+          <form [formGroup]="form" (ngSubmit)="addRace()" novalidate>
+            <fieldset [disabled]="!auth.isAdmin()">
+              <legend class="visually-hidden">New race</legend>
+              <div class="field">
+                <label for="race-name">Grand Prix name</label>
+                <input id="race-name" formControlName="name" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="race-country">Country</label>
+                <input id="race-country" formControlName="country" autocomplete="off" />
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label for="race-season">Season</label>
+                  <select id="race-season" formControlName="seasonId">
+                    @for (season of seasons(); track season.id) {
+                      <option [ngValue]="season.id">{{ season.year }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="race-round">Round</label>
+                  <input id="race-round" type="number" min="1" inputmode="numeric" formControlName="round" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="race-date">Race date</label>
+                <input id="race-date" type="date" formControlName="date" />
+              </div>
+              @if (form.touched && form.invalid) {
+                <p class="field-error">Fill in every field. The round must be 1 or higher.</p>
+              }
+              <button class="btn btn-primary" type="submit" [disabled]="writeState() === 'saving'">
+                {{ writeState() === 'saving' ? 'Adding race' : 'Add race' }}
+              </button>
+            </fieldset>
+          </form>
+
+          @if (writeMessage(); as message) {
+            <div class="notice" [class.is-error]="writeState() === 'error'" [class.is-ok]="writeState() === 'saved'" role="status">
+              {{ message }}
+            </div>
           }
         </div>
-      </section>
-    } @else {
-      <section class="panel summary-panel">
-        <p>Found {{ totalCount() }} races. Page {{ currentPage() }}.</p>
-        <div class="pagination-actions">
-          <button type="button" (click)="goToPreviousPage()" [disabled]="!hasPreviousPage()">
-            Previous
-          </button>
-          <button type="button" (click)="goToNextPage()" [disabled]="!hasNextPage()">
-            Next
-          </button>
-        </div>
-      </section>
-
-      <section class="panel table-panel">
-        <table>
-          <thead>
-            <tr>
-              <th class="col-index">#</th>
-              <th class="col-season">Season</th>
-              <th>Round</th>
-              <th>Race</th>
-              <th>Country</th>
-              <th class="col-date">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (race of races(); track race.id; let i = $index) {
-              <tr>
-                <td class="col-index">{{ rowNumber(i) }}</td>
-                <td class="col-season">{{ race.season_year }}</td>
-                <td>R{{ race.round_number }}</td>
-                <td><a class="row-link" [routerLink]="['/races', race.id]">{{ race.name }}</a></td>
-                <td>{{ race.country }}</td>
-                <td class="col-date">{{ formatRaceDate(race.race_date) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </section>
-    }
+      </aside>
+    </div>
   }
 </div>

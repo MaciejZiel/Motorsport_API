@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { API_BASE_URL } from '../api.config';
+import { API_BASE_URL, API_HEALTH_URL } from '../api.config';
 import { MotorsportApiService } from './motorsport-api.service';
 
 describe('MotorsportApiService', () => {
@@ -66,66 +66,71 @@ describe('MotorsportApiService', () => {
     request.flush({ season: 2026, results: [] });
   });
 
-  it('builds drivers query params from filters', () => {
-    service
-      .getDrivers({
-        page: 2,
-        teamName: 'Red',
-        country: 'Italy',
-        minPoints: 100,
-      })
-      .subscribe((response) => {
-        expect(response.count).toBe(1);
-      });
+  it('follows page numbers until the last page of drivers', () => {
+    let drivers: unknown[] = [];
+    service.getDrivers().subscribe((response) => (drivers = response));
 
-    const request = httpMock.expectOne(
-      `${API_BASE_URL}/drivers/?page=2&team_name=Red&country=Italy&min_points=100`
-    );
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('page')).toBe('2');
-    expect(request.request.params.get('team_name')).toBe('Red');
-    expect(request.request.params.get('country')).toBe('Italy');
-    expect(request.request.params.get('min_points')).toBe('100');
+    const first = httpMock.expectOne(`${API_BASE_URL}/drivers/`);
+    first.flush({
+      count: 2,
+      next: 'http://internal-host/api/v1/drivers/?page=2',
+      previous: null,
+      results: [{ id: 1, name: 'Max Fast', points: 86, team: { id: 1, name: 'Red Apex', country: 'Italy' } }],
+    });
 
-    request.flush({ count: 1, next: null, previous: null, results: [] });
+    const second = httpMock.expectOne(`${API_BASE_URL}/drivers/?page=2`);
+    second.flush({
+      count: 2,
+      next: null,
+      previous: `${API_BASE_URL}/drivers/`,
+      results: [{ id: 2, name: 'Luca Stone', points: 27, team: { id: 1, name: 'Red Apex', country: 'Italy' } }],
+    });
+
+    expect(drivers).toHaveLength(2);
   });
 
-  it('omits invalid team filters', () => {
-    service
-      .getTeams({
-        page: 0,
-        name: '   ',
-        country: '',
-      })
-      .subscribe((response) => {
-        expect(response.count).toBe(0);
-      });
+  it('passes result filters and skips empty ones', () => {
+    service.getResults({ season: 2026, driver: undefined, race: 4 }).subscribe();
 
-    const request = httpMock.expectOne(`${API_BASE_URL}/teams/`);
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.keys()).toEqual([]);
-
+    const request = httpMock.expectOne(
+      (req) => req.url === `${API_BASE_URL}/results/` && req.params.get('season') === '2026'
+    );
+    expect(request.request.params.get('race')).toBe('4');
+    expect(request.request.params.has('driver')).toBe(false);
+    expect(request.request.params.has('page')).toBe(false);
     request.flush({ count: 0, next: null, previous: null, results: [] });
   });
 
-  it('builds races query params from filters', () => {
-    service
-      .getRaces({
-        page: 3,
-        season: 2026,
-        country: 'Spain',
-      })
-      .subscribe((response) => {
-        expect(response.count).toBe(2);
-      });
+  it('filters races by season', () => {
+    service.getRaces(2025).subscribe((races) => expect(races).toEqual([]));
 
-    const request = httpMock.expectOne(`${API_BASE_URL}/races/?page=3&season=2026&country=Spain`);
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('page')).toBe('3');
-    expect(request.request.params.get('season')).toBe('2026');
-    expect(request.request.params.get('country')).toBe('Spain');
+    const request = httpMock.expectOne(`${API_BASE_URL}/races/?season=2025`);
+    request.flush({ count: 0, next: null, previous: null, results: [] });
+  });
 
-    request.flush({ count: 2, next: null, previous: null, results: [] });
+  it('lists seasons and teams', () => {
+    service.getSeasons().subscribe((seasons) => expect(seasons).toHaveLength(1));
+    service.getTeams().subscribe((teams) => expect(teams).toHaveLength(0));
+
+    httpMock
+      .expectOne(`${API_BASE_URL}/seasons/`)
+      .flush({ count: 1, next: null, previous: null, results: [{ id: 1, year: 2026, name: 'S', race_count: 2 }] });
+    httpMock.expectOne(`${API_BASE_URL}/teams/`).flush({ count: 0, next: null, previous: null, results: [] });
+  });
+
+  it('posts a new race', () => {
+    const payload = { name: 'Japanese Grand Prix', country: 'Japan', round_number: 3, race_date: '2026-10-25', season_id: 2 };
+    service.createRace(payload).subscribe((race) => expect(race.id).toBe(9));
+
+    const request = httpMock.expectOne(`${API_BASE_URL}/races/`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+    request.flush({ id: 9, name: 'Japanese Grand Prix', country: 'Japan', round_number: 3, race_date: '2026-10-25', season_year: 2026 });
+  });
+
+  it('checks API health', () => {
+    service.getHealth().subscribe((health) => expect(health.status).toBe('ok'));
+    httpMock.expectOne(API_HEALTH_URL).flush({ status: 'ok', database: true });
   });
 
   it('calls driver detail endpoint', () => {
