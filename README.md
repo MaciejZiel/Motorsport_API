@@ -10,10 +10,6 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 ![DRF](https://img.shields.io/badge/DRF-3.17-A30000)
 ![Angular 21](https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white)
 
-**Live demo:** [https://motorsport-api-uxdr.onrender.com](https://motorsport-api-uxdr.onrender.com) — Swagger UI, read-only demo account `demo` / `motorsport-demo` (free tier: the first request after idle can take ~30 s)
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MaciejZiel/Motorsport_API)
-
 ![Demo: dashboard, driver filters, race calendar, dark mode and a live request in Swagger UI](docs/demo.gif)
 
 ## What it does
@@ -107,7 +103,6 @@ What you need to click:
 1. Click **Deploy to Render** above and sign in to Render with GitHub. If asked, give Render access to this repository.
 2. Render shows the Blueprint with two resources, the web service `motorsport-api` and the database `motorsport-db`, both on the free plan. Enter any Blueprint name and click **Deploy Blueprint**. You don't need to enter any values: secrets are generated and `DATABASE_URL` is wired up automatically.
 3. Wait for the first build (a few minutes), then open the service URL shown in the dashboard (`https://motorsport-api-xxxx.onrender.com`). It redirects to Swagger UI, and `/api/health/` should return `{"status": "ok", ...}`.
-4. Replace the "Live demo" line at the top of this README with that URL.
 
 Demo login (works in Swagger UI's `POST /api/v1/auth/token/` or the cookie login): user `demo`, password `motorsport-demo`. The account is deliberately public. It is not staff, so every write returns `403`. To use another password, change `DEMO_USER_PASSWORD` under **Environment** in the Render dashboard. The next start resets the account to that value.
 
