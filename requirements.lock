@@ -8,7 +8,7 @@ djangorestframework==3.18.1
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.29.0
 drf-spectacular-sidecar==2026.9.1
-gunicorn==25.0.3
+gunicorn==26.2.0
 inflection==0.5.1
 iniconfig==2.3.0
 jsonschema==4.26.0
