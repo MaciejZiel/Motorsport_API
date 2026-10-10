@@ -20,3 +20,4 @@ distributed under.
 | https://github.com/benoitc/gunicorn | gunicorn 26.2.0 | MIT | https://github.com/benoitc/gunicorn/blob/master/LICENSE |
 | https://github.com/evansd/whitenoise | whitenoise 6.12.0 | MIT | https://github.com/evansd/whitenoise/blob/main/LICENSE |
 | https://github.com/adamchainz/django-cors-headers | django-cors-headers 4.9.0 | MIT | https://github.com/adamchainz/django-cors-headers/blob/main/LICENSE |
+| https://github.com/pytest-dev/pytest-cov | pytest-cov 7.1.0 | MIT | https://github.com/pytest-dev/pytest-cov/blob/master/LICENSE |
