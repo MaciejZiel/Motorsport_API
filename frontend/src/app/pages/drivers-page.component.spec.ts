@@ -1,78 +1,38 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, of } from 'rxjs';
-import { MotorsportApiService } from '../core/motorsport-api.service';
+import { of, throwError } from 'rxjs';
+import { vi } from 'vitest';
+import { ApiMock, createApiMock } from '../testing/fixtures';
+import { openPage, setupPage } from '../testing/harness';
 import { DriversPageComponent } from './drivers-page.component';
 
 describe('DriversPageComponent', () => {
-  let fixture: ComponentFixture<DriversPageComponent>;
-  let component: DriversPageComponent;
-  let navigateSpy: ReturnType<typeof vi.fn>;
+  let api: ApiMock;
 
-  beforeEach(async () => {
-    const queryParamMap$ = new BehaviorSubject(convertToParamMap({}));
-    const getDriversSpy = vi.fn().mockReturnValue(
-      of({
-        count: 0,
-        next: null,
-        previous: null,
-        results: [],
-      })
-    );
-    navigateSpy = vi.fn().mockResolvedValue(true);
-
-    await TestBed.configureTestingModule({
-      imports: [DriversPageComponent],
-      providers: [
-        {
-          provide: MotorsportApiService,
-          useValue: {
-            getDrivers: getDriversSpy,
-          },
-        },
-        {
-          provide: Router,
-          useValue: {
-            navigate: navigateSpy,
-          },
-        },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            queryParamMap: queryParamMap$.asObservable(),
-          },
-        },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(DriversPageComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    await fixture.whenStable();
+  beforeEach(() => {
+    api = createApiMock();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    setupPage(api, [{ path: 'drivers', component: DriversPageComponent }]);
   });
 
-  it('builds query params correctly when numeric filters come from number inputs', async () => {
-    component.teamFilter = 'Red Apex';
-    component.countryFilter = 'Italy';
-    component.minPointsFilter = 100;
+  afterEach(() => vi.restoreAllMocks());
 
-    component.applyFilters();
-    await fixture.whenStable();
+  it('ranks drivers by career points with bars relative to the top scorer', async () => {
+    const { page, el } = await openPage('/drivers', DriversPageComponent);
 
-    expect(navigateSpy).toHaveBeenCalled();
-    const navigateCall = navigateSpy.mock.calls.at(-1);
-    expect(navigateCall).toBeDefined();
-    expect(navigateCall?.[1]?.queryParams).toEqual({
-      team_name: 'Red Apex',
-      country: 'Italy',
-      min_points: 100,
-    });
+    expect(page.rows().map((row) => [row.code, row.rank, row.ratio])).toEqual([
+      ['FAS', 1, 1],
+      ['PAC', 2, 58 / 86],
+    ]);
+    expect(el.querySelectorAll('tbody tr')).toHaveLength(2);
   });
 
-  it('treats numeric filters as active', () => {
-    component.teamFilter = 'Red Apex';
-    component.minPointsFilter = 0;
+  it('shows empty and error states', async () => {
+    api.getDrivers.mockReturnValue(of([]));
+    const { page, el, harness } = await openPage('/drivers', DriversPageComponent);
+    expect(el.textContent).toContain('No drivers yet');
 
-    expect(component.hasActiveFilters()).toBe(true);
+    api.getDrivers.mockReturnValue(throwError(() => new Error('down')));
+    page.load();
+    harness.detectChanges();
+    expect(page.state()).toBe('error');
   });
 });

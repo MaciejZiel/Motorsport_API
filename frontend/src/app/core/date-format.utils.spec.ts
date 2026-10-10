@@ -1,15 +1,13 @@
-import { formatApiDate } from './date-format.utils';
+import { formatApiDate, formatDayMonth } from './date-format.utils';
 
-describe('formatApiDate', () => {
-  it('formats API date as a readable short date', () => {
-    expect(formatApiDate('2026-04-19')).toBe('Apr 19, 2026');
+describe('date-format utils', () => {
+  it('formats API dates in UTC', () => {
+    expect(formatApiDate('2026-04-19')).toBe('19 Apr 2026');
+    expect(formatDayMonth('2026-03-05')).toBe('05 Mar');
   });
 
-  it('ignores extra whitespace around date string', () => {
-    expect(formatApiDate(' 2026-03-15 ')).toBe('Mar 15, 2026');
-  });
-
-  it('returns original value for non-ISO date input', () => {
-    expect(formatApiDate('19/04/2026')).toBe('19/04/2026');
+  it('returns unknown formats unchanged', () => {
+    expect(formatApiDate('2026/04/19')).toBe('2026/04/19');
+    expect(formatDayMonth('soon')).toBe('soon');
   });
 });

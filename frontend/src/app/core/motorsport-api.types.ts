@@ -71,3 +71,33 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export interface Season {
+  id: number;
+  year: number;
+  name: string;
+  race_count: number;
+}
+
+export interface RaceResult {
+  id: number;
+  position: number;
+  points_earned: number;
+  fastest_lap: boolean;
+  race: Race;
+  driver: Driver;
+}
+
+export interface RaceCreatePayload {
+  name: string;
+  country: string;
+  round_number: number;
+  race_date: string;
+  season_id: number;
+}
+
+export interface HealthStatus {
+  status: string;
+  service?: string;
+  database?: boolean;
+}

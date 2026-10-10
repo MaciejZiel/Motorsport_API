@@ -1,92 +1,67 @@
-import { DOCUMENT } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_DOCS_URL } from './api.config';
+import { ApiStatusService } from './core/api-status.service';
 import { AuthService } from './core/auth.service';
 
 interface NavLink {
   path: string;
   label: string;
-  requiresAuth?: boolean;
-  requiresAdmin?: boolean;
+  exact?: boolean;
+  staffOnly?: boolean;
 }
-
-type ThemeMode = 'light' | 'dark';
-
-const THEME_STORAGE_KEY = 'motorsport_theme';
 
 @Component({
   selector: 'app-root',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
-  readonly theme = signal<ThemeMode>(this.resolveInitialTheme());
-  readonly isDarkMode = computed(() => this.theme() === 'dark');
+  readonly apiStatus = inject(ApiStatusService);
 
-  readonly title = 'Grand Prix Atlas';
+  readonly title = 'Pit Wall';
   readonly docsUrl = API_DOCS_URL;
+  readonly repoUrl = 'https://github.com/MaciejZiel/Motorsport_API';
   readonly navLinks: NavLink[] = [
-    { path: '/', label: 'Dashboard' },
-    { path: '/admin', label: 'Admin', requiresAuth: true, requiresAdmin: true },
+    { path: '/', label: 'Standings', exact: true },
+    { path: '/races', label: 'Calendar' },
     { path: '/drivers', label: 'Drivers' },
     { path: '/teams', label: 'Teams' },
-    { path: '/races', label: 'Races' },
+    { path: '/admin', label: 'Admin', staffOnly: true },
   ];
 
+  readonly visibleLinks = computed(() =>
+    this.navLinks.filter((link) => !link.staffOnly || this.auth.isAdmin())
+  );
+
+  readonly roleLabel = computed(() => (this.auth.isAdmin() ? 'Staff' : 'Read-only'));
+
+  readonly statusLabel = computed(() => {
+    switch (this.apiStatus.status()) {
+      case 'online':
+        return `API ${this.apiStatus.latencyMs()} ms`;
+      case 'waking':
+        return 'API waking up';
+      case 'offline':
+        return 'API offline';
+      default:
+        return 'API checking';
+    }
+  });
+
   constructor() {
-    this.applyTheme(this.theme());
+    this.apiStatus.check();
     this.auth.ensureCsrfToken().subscribe();
     this.auth.ensureCurrentUser().subscribe();
   }
 
-  toggleTheme(): void {
-    const nextTheme: ThemeMode = this.isDarkMode() ? 'light' : 'dark';
-    this.theme.set(nextTheme);
-    this.applyTheme(nextTheme);
-    this.persistTheme(nextTheme);
-  }
-
-  async handleLogout(): Promise<void> {
+  async signOut(): Promise<void> {
     await firstValueFrom(this.auth.logout());
-    await this.router.navigateByUrl('/login');
-  }
-
-  private resolveInitialTheme(): ThemeMode {
-    if (typeof window === 'undefined') {
-      return 'light';
-    }
-
-    const requestedTheme = new URLSearchParams(window.location.search).get('theme');
-    if (requestedTheme === 'light' || requestedTheme === 'dark') {
-      return requestedTheme;
-    }
-
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') {
-      return stored;
-    }
-
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-
-    return 'light';
-  }
-
-  private applyTheme(theme: ThemeMode): void {
-    this.document.documentElement.setAttribute('data-theme', theme);
-  }
-
-  private persistTheme(theme: ThemeMode): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    await this.router.navigateByUrl('/');
   }
 }
