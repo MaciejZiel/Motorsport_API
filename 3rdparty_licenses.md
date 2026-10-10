@@ -15,3 +15,4 @@ distributed under.
 | https://github.com/actions/setup-node | actions/setup-node v6 (CI only) | MIT | https://github.com/actions/setup-node/blob/main/LICENSE |
 | https://github.com/actions/checkout | actions/checkout v7 (CI only) | MIT | https://github.com/actions/checkout/blob/main/LICENSE |
 | https://github.com/psycopg/psycopg | psycopg[binary] 3.3.6 (pre-existing dependency) | LGPL-3.0-only | https://github.com/psycopg/psycopg/blob/master/LICENSE.txt |
+| https://github.com/encode/django-rest-framework | djangorestframework 3.18.1 | BSD-3-Clause | https://github.com/encode/django-rest-framework/blob/main/LICENSE.md |
