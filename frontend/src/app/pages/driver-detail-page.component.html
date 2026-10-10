@@ -1,48 +1,117 @@
-<div class="page-shell">
-  <header class="page-header">
-    <div>
-      <p class="kicker">Driver</p>
-      <h1>Driver Profile</h1>
-      <p>Read-only data from <code>/api/v1/drivers/:id/</code>.</p>
-    </div>
-    <a class="back-link" routerLink="/drivers">Back to drivers</a>
-  </header>
+<div class="page" [style.--livery]="color()">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a routerLink="/drivers">Drivers</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ driver()?.name ?? 'Driver' }}</span>
+  </nav>
 
-  @if (state() === 'loading') {
-    <section class="panel muted-panel">Loading driver details...</section>
-  } @else if (state() === 'error') {
-    <section class="panel error-panel">
-      <p>{{ errorMessage() }}</p>
-      <div class="message-actions">
-        <button type="button" (click)="retry()">Retry</button>
-        <a class="secondary-link" routerLink="/drivers">Back to list</a>
+  <app-load-state [state]="state()" subject="this driver" [message]="errorMessage()" (retry)="load()" />
+
+  @if (state() === 'ready' && driver(); as d) {
+    <header class="hero" [style.--livery]="color()">
+      <p class="big-code" aria-hidden="true">{{ code() }}</p>
+      <div class="ident">
+        <h1 class="page-title">{{ d.name }}</h1>
+        <a class="team-inline" [routerLink]="['/teams', d.team.id]">
+          <span class="team-swatch"></span>{{ d.team.name }}
+        </a>
+        <span class="muted">{{ d.team.country }}</span>
       </div>
-    </section>
-  } @else {
-    @if (driver(); as item) {
-      <section class="panel hero-panel">
-        <p class="label">Driver name</p>
-        <h2>{{ item.name }}</h2>
+    </header>
+
+    <dl class="stats">
+      <div><dt>Career points</dt><dd class="num">{{ d.points }}</dd></div>
+      <div><dt>Starts</dt><dd class="num">{{ totals().starts }}</dd></div>
+      <div><dt>Wins</dt><dd class="num">{{ totals().wins }}</dd></div>
+      <div><dt>Podiums</dt><dd class="num">{{ totals().podiums }}</dd></div>
+      <div><dt>Best finish</dt><dd class="num">{{ totals().best ? 'P' + totals().best : '–' }}</dd></div>
+      <div><dt>Fastest laps</dt><dd class="num">{{ totals().fastestLaps }}</dd></div>
+    </dl>
+
+    @if (history().length) {
+      <div class="split">
+        <section class="panel" aria-labelledby="progress-title">
+          <div class="panel-head">
+            <h2 id="progress-title">Points progression</h2>
+            <span class="panel-note">Cumulative, bars show each race</span>
+          </div>
+          <div class="panel-body">
+            <app-points-chart [entries]="chartEntries()" [color]="color()" />
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="seasons-title">
+          <div class="panel-head">
+            <h2 id="seasons-title">By season</h2>
+          </div>
+          <table class="data-table">
+            <caption class="visually-hidden">Season summary for {{ d.name }}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Season</th>
+                <th scope="col" class="r">Starts</th>
+                <th scope="col" class="r">Wins</th>
+                <th scope="col" class="r">Best</th>
+                <th scope="col" class="r">Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of seasons(); track s.season) {
+                <tr>
+                  <td><a class="num" routerLink="/" [queryParams]="{ season: s.season }">{{ s.season }}</a></td>
+                  <td class="r num">{{ s.starts }}</td>
+                  <td class="r num">{{ s.wins }}</td>
+                  <td class="r num">P{{ s.best }}</td>
+                  <td class="r num strong">{{ s.points }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="results-title">
+        <div class="panel-head">
+          <h2 id="results-title">Race results</h2>
+          <span class="panel-note">{{ history().length }} classified finishes</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <caption class="visually-hidden">Every race result for {{ d.name }}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Round</th>
+                <th scope="col">Grand Prix</th>
+                <th scope="col" class="col-date">Date</th>
+                <th scope="col" class="r">Pos</th>
+                <th scope="col" class="r">Pts</th>
+                <th scope="col"><span class="visually-hidden">Fastest lap</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (result of history(); track result.id) {
+                <tr>
+                  <td class="num muted nowrap">{{ result.race.season_year }} R{{ result.race.round_number }}</td>
+                  <td><a [routerLink]="['/races', result.race.id]">{{ result.race.name }}</a></td>
+                  <td class="col-date muted">{{ formatDate(result.race.race_date) }}</td>
+                  <td class="r num strong" [class.win]="result.position === 1">P{{ result.position }}</td>
+                  <td class="r num">{{ result.points_earned }}</td>
+                  <td>
+                    @if (result.fastest_lap) {
+                      <span class="fastest-lap" title="Fastest lap"><span class="fl-long">Fastest lap</span><span class="fl-short" aria-hidden="true">FL</span></span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       </section>
-
-      <section class="detail-grid">
-        <article class="panel detail-card">
-          <p class="label">Points</p>
-          <p class="value">{{ item.points }}</p>
-        </article>
-
-        <article class="panel detail-card">
-          <p class="label">Team</p>
-          <p class="value">
-            <a [routerLink]="['/teams', item.team.id]">{{ item.team.name }}</a>
-          </p>
-        </article>
-
-        <article class="panel detail-card">
-          <p class="label">Team country</p>
-          <p class="value">{{ item.team.country }}</p>
-        </article>
-      </section>
+    } @else {
+      <div class="notice">
+        <strong>No race results yet</strong>
+        <p>{{ d.name }} hasn't been classified in a race, so there's no progression to chart.</p>
+      </div>
     }
   }
 </div>

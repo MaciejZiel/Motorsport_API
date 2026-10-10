@@ -9,3 +9,8 @@ distributed under.
 | https://github.com/swagger-api/swagger-ui (bundled in drf-spectacular-sidecar) | swagger-ui-dist | Apache-2.0 | https://github.com/swagger-api/swagger-ui/blob/master/LICENSE |
 | https://github.com/Redocly/redoc (bundled in drf-spectacular-sidecar) | redoc | MIT | https://github.com/Redocly/redoc/blob/main/LICENSE |
 | https://github.com/github/codeql-action | github/codeql-action v4.38.2 (CI only) | MIT | https://github.com/github/codeql-action/blob/main/LICENSE |
+| https://fonts.google.com/specimen/Saira (loaded from Google Fonts by the frontend) | Saira (variable, wdth/wght) | OFL-1.1 | https://github.com/Omnibus-Type/Saira/blob/master/OFL.txt |
+| https://fonts.google.com/specimen/IBM+Plex+Mono (loaded from Google Fonts by the frontend) | IBM Plex Mono | OFL-1.1 | https://github.com/IBM/plex/blob/master/LICENSE.txt |
+| https://github.com/actions/setup-python | actions/setup-python v7 (CI only) | MIT | https://github.com/actions/setup-python/blob/main/LICENSE |
+| https://github.com/actions/setup-node | actions/setup-node v6 (CI only) | MIT | https://github.com/actions/setup-node/blob/main/LICENSE |
+| https://github.com/actions/checkout | actions/checkout v7 (CI only) | MIT | https://github.com/actions/checkout/blob/main/LICENSE |
