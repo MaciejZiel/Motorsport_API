@@ -1,6 +1,6 @@
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 
 import { authTokenInterceptor } from './core/auth.interceptor';
 import { routes } from './app.routes';
@@ -15,6 +15,6 @@ export const appConfig: ApplicationConfig = {
         headerName: 'X-CSRFToken',
       })
     ),
-    provideRouter(routes)
-  ]
+    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
+  ],
 };
