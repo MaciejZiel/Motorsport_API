@@ -25,6 +25,7 @@ export class AuthService {
   private readonly currentUser = signal<AuthUser | null>(this.readUserStorage());
 
   readonly isAuthenticated = computed(() => Boolean(this.currentUser()));
+  readonly user = this.currentUser.asReadonly();
   readonly isAdmin = computed(
     () => Boolean(this.currentUser()?.is_staff || this.currentUser()?.is_superuser)
   );

@@ -1,84 +1,46 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, of, throwError } from 'rxjs';
-import { MotorsportApiService } from '../core/motorsport-api.service';
+import { throwError } from 'rxjs';
+import { vi } from 'vitest';
+import { ApiMock, createApiMock } from '../testing/fixtures';
+import { openPage, setupPage } from '../testing/harness';
 import { RaceDetailPageComponent } from './race-detail-page.component';
 
 describe('RaceDetailPageComponent', () => {
-  let fixture: ComponentFixture<RaceDetailPageComponent>;
-  let component: RaceDetailPageComponent;
-  let getRaceByIdSpy: ReturnType<typeof vi.fn>;
-  let params$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let api: ApiMock;
 
-  beforeEach(async () => {
-    params$ = new BehaviorSubject(convertToParamMap({ id: '1' }));
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    getRaceByIdSpy = vi.fn().mockReturnValue(
-      of({
-        id: 1,
-        name: 'Australian Grand Prix',
-        country: 'Australia',
-        round_number: 1,
-        race_date: '2026-03-15',
-        season_year: 2026,
-      })
-    );
-
-    await TestBed.configureTestingModule({
-      imports: [RaceDetailPageComponent],
-      providers: [
-        {
-          provide: MotorsportApiService,
-          useValue: {
-            getRaceById: getRaceByIdSpy,
-          },
-        },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            paramMap: params$.asObservable(),
-          },
-        },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(RaceDetailPageComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    await fixture.whenStable();
+  beforeEach(() => {
+    api = createApiMock();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    setupPage(api, [{ path: 'races/:id', component: RaceDetailPageComponent }]);
   });
 
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
+  afterEach(() => vi.restoreAllMocks());
+
+  it('shows the podium, classification and neighbouring rounds', async () => {
+    const { page, el } = await openPage('/races/4', RaceDetailPageComponent);
+
+    expect(api.getResults).toHaveBeenCalledWith({ race: 4 });
+    expect(api.getRaces).toHaveBeenCalledWith(2026);
+    expect(el.querySelector('h1')?.textContent).toContain('Spanish Grand Prix');
+    expect(el.querySelectorAll('.podium li')).toHaveLength(2);
+    expect(el.querySelector('.podium li')?.textContent).toContain('FAS');
+    expect(el.querySelector('.fastest-lap')).not.toBeNull();
+    expect(page.neighbours().previous?.id).toBe(3);
+    expect(page.neighbours().next?.id).toBe(5);
+    expect(el.querySelector('.round-line')?.textContent).toContain('Round 2 of 3');
   });
 
-  it('loads race details for valid route id', () => {
-    expect(getRaceByIdSpy).toHaveBeenCalledWith(1);
-    expect(component.state()).toBe('ready');
-    expect(component.race()?.name).toBe('Australian Grand Prix');
-    expect(component.errorMessage()).toBeNull();
+  it('says an upcoming race has not been run', async () => {
+    const { el } = await openPage('/races/5', RaceDetailPageComponent);
+
+    expect(el.textContent).toContain('Not run yet');
   });
 
-  it('shows not found message when API returns 404', async () => {
-    getRaceByIdSpy.mockReturnValueOnce(
-      throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found' }))
-    );
+  it('reports a missing race', async () => {
+    api.getRaceById.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    const { page } = await openPage('/races/99', RaceDetailPageComponent);
 
-    params$.next(convertToParamMap({ id: '9' }));
-    await fixture.whenStable();
-
-    expect(component.state()).toBe('error');
-    expect(component.errorMessage()).toBe('Race not found.');
-  });
-
-  it('handles invalid route id without API call', async () => {
-    params$.next(convertToParamMap({ id: 'abc' }));
-    await fixture.whenStable();
-
-    expect(component.state()).toBe('error');
-    expect(component.errorMessage()).toBe('Invalid race id in URL.');
-    expect(getRaceByIdSpy).toHaveBeenCalledTimes(1);
+    expect(page.state()).toBe('error');
+    expect(page.errorMessage()).toContain('No race with this id');
   });
 });

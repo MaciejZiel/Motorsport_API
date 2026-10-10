@@ -1,110 +1,78 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../api.config';
+import { EMPTY, Observable, expand, map, reduce } from 'rxjs';
+import { API_BASE_URL, API_HEALTH_URL } from '../api.config';
 import {
   ApiStats,
   ConstructorStanding,
   Driver,
   DriverStanding,
+  HealthStatus,
   PaginatedResponse,
   Race,
+  RaceCreatePayload,
+  RaceResult,
+  Season,
   SeasonStandingsResponse,
   Team,
   TeamDetail,
 } from './motorsport-api.types';
 
-export interface DriverListFilters {
-  page?: number;
-  teamName?: string;
-  country?: string;
-  minPoints?: number;
-}
+type QueryValue = string | number | undefined | null;
 
-export interface TeamListFilters {
-  page?: number;
-  name?: string;
-  country?: string;
-}
-
-export interface RaceListFilters {
-  page?: number;
+export interface ResultFilters {
   season?: number;
-  country?: string;
+  race?: number;
+  driver?: number;
 }
+
+/** Safety net for runaway pagination; the API pages by 10. */
+const MAX_PAGES = 50;
 
 @Injectable({ providedIn: 'root' })
 export class MotorsportApiService {
   private readonly http = inject(HttpClient);
+
+  getHealth(): Observable<HealthStatus> {
+    return this.http.get<HealthStatus>(API_HEALTH_URL);
+  }
 
   getStats(): Observable<ApiStats> {
     return this.http.get<ApiStats>(`${API_BASE_URL}/stats/`);
   }
 
   getDriverStandings(season?: number): Observable<SeasonStandingsResponse<DriverStanding>> {
-    return this.http.get<SeasonStandingsResponse<DriverStanding>>(`${API_BASE_URL}/standings/drivers/`, {
-      params: this.buildSeasonParams(season),
-    });
+    return this.http.get<SeasonStandingsResponse<DriverStanding>>(
+      `${API_BASE_URL}/standings/drivers/`,
+      { params: this.params({ season }) }
+    );
   }
 
   getConstructorStandings(season?: number): Observable<SeasonStandingsResponse<ConstructorStanding>> {
     return this.http.get<SeasonStandingsResponse<ConstructorStanding>>(
       `${API_BASE_URL}/standings/constructors/`,
-      {
-        params: this.buildSeasonParams(season),
-      }
+      { params: this.params({ season }) }
     );
   }
 
-  getDrivers(filters?: DriverListFilters): Observable<PaginatedResponse<Driver>> {
-    let params = new HttpParams();
-
-    if (filters?.page && filters.page > 0) {
-      params = params.set('page', filters.page);
-    }
-    if (filters?.teamName?.trim()) {
-      params = params.set('team_name', filters.teamName.trim());
-    }
-    if (filters?.country?.trim()) {
-      params = params.set('country', filters.country.trim());
-    }
-    if (filters?.minPoints !== undefined && filters.minPoints >= 0) {
-      params = params.set('min_points', filters.minPoints);
-    }
-
-    return this.http.get<PaginatedResponse<Driver>>(`${API_BASE_URL}/drivers/`, { params });
+  getSeasons(): Observable<Season[]> {
+    return this.getAll<Season>('seasons/');
   }
 
-  getTeams(filters?: TeamListFilters): Observable<PaginatedResponse<Team>> {
-    let params = new HttpParams();
-
-    if (filters?.page && filters.page > 0) {
-      params = params.set('page', filters.page);
-    }
-    if (filters?.name?.trim()) {
-      params = params.set('name', filters.name.trim());
-    }
-    if (filters?.country?.trim()) {
-      params = params.set('country', filters.country.trim());
-    }
-
-    return this.http.get<PaginatedResponse<Team>>(`${API_BASE_URL}/teams/`, { params });
+  getDrivers(): Observable<Driver[]> {
+    return this.getAll<Driver>('drivers/');
   }
 
-  getRaces(filters?: RaceListFilters): Observable<PaginatedResponse<Race>> {
-    let params = new HttpParams();
+  getTeams(): Observable<Team[]> {
+    return this.getAll<Team>('teams/');
+  }
 
-    if (filters?.page && filters.page > 0) {
-      params = params.set('page', filters.page);
-    }
-    if (filters?.season && filters.season > 0) {
-      params = params.set('season', filters.season);
-    }
-    if (filters?.country?.trim()) {
-      params = params.set('country', filters.country.trim());
-    }
+  getRaces(season?: number): Observable<Race[]> {
+    return this.getAll<Race>('races/', { season });
+  }
 
-    return this.http.get<PaginatedResponse<Race>>(`${API_BASE_URL}/races/`, { params });
+  getResults(filters: ResultFilters = {}): Observable<RaceResult[]> {
+    return this.getAll<RaceResult>('results/', { ...filters });
   }
 
   getDriverById(id: number): Observable<Driver> {
@@ -119,10 +87,36 @@ export class MotorsportApiService {
     return this.http.get<Race>(`${API_BASE_URL}/races/${id}/`);
   }
 
-  private buildSeasonParams(season?: number): HttpParams {
+  createRace(payload: RaceCreatePayload): Observable<Race> {
+    return this.http.post<Race>(`${API_BASE_URL}/races/`, payload);
+  }
+
+  /**
+   * Follows page numbers rather than the absolute `next` URLs, so paging keeps
+   * working when the API sits behind a proxy on another host name.
+   */
+  private getAll<T>(path: string, query: Record<string, QueryValue> = {}): Observable<T[]> {
+    const fetchPage = (page: number) =>
+      this.http
+        .get<PaginatedResponse<T>>(`${API_BASE_URL}/${path}`, {
+          params: this.params({ ...query, page: page > 1 ? page : undefined }),
+        })
+        .pipe(map((response) => ({ page, response })));
+
+    return fetchPage(1).pipe(
+      expand(({ page, response }) =>
+        response.next && page < MAX_PAGES ? fetchPage(page + 1) : EMPTY
+      ),
+      reduce((items, { response }) => items.concat(response.results), [] as T[])
+    );
+  }
+
+  private params(query: Record<string, QueryValue>): HttpParams {
     let params = new HttpParams();
-    if (season) {
-      params = params.set('season', season);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        params = params.set(key, value);
+      }
     }
     return params;
   }
