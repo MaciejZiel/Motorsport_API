@@ -4,7 +4,7 @@ coverage==7.13.4
 Django==6.0.8
 django-cors-headers==4.9.0
 django-redis==6.0.0
-djangorestframework==3.17.2
+djangorestframework==3.18.1
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.29.0
 drf-spectacular-sidecar==2026.9.1
