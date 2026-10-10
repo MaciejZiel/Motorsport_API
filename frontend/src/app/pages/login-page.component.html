@@ -1,0 +1,54 @@
+<div class="page auth">
+  <section class="auth-main" aria-labelledby="login-title">
+    <h1 id="login-title" class="page-title">Sign in</h1>
+
+    <button class="btn btn-primary demo" type="button" (click)="continueAsDemo()" [disabled]="pending() !== null">
+      {{ pending() === 'demo' ? 'Signing in as demo' : 'Continue as demo (read-only)' }}
+    </button>
+    <p class="hint">Signs you in as <span class="num">{{ demoUsername }}</span>. No account needed.</p>
+
+    <div class="divider" role="separator"><span>or use your account</span></div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" formControlName="username" autocomplete="username"
+          [attr.aria-invalid]="form.controls.username.touched && form.controls.username.invalid" />
+        @if (form.controls.username.touched && form.controls.username.invalid) {
+          <p class="field-error">Enter your username.</p>
+        }
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" formControlName="password" autocomplete="current-password"
+          [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid" />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <p class="field-error">Enter your password.</p>
+        }
+      </div>
+      <button class="btn" type="submit" [disabled]="pending() !== null">
+        {{ pending() === 'form' ? 'Signing in' : 'Sign in' }}
+      </button>
+    </form>
+
+    @if (errorMessage(); as message) {
+      <div class="notice is-error" role="alert">{{ message }}</div>
+    }
+
+    <p class="switch">No account? <a routerLink="/register">Create one</a></p>
+  </section>
+
+  <aside class="auth-side" aria-labelledby="roles-title">
+    <h2 id="roles-title">What each account can do</h2>
+    <dl>
+      <div>
+        <dt>Read-only <span class="muted">(demo and new accounts)</span></dt>
+        <dd>Browse standings, results, drivers and teams. Any edit is refused by the API with a 403.</dd>
+      </div>
+      <div>
+        <dt>Staff</dt>
+        <dd>Everything above, plus adding races from the calendar and the back-office in Admin.</dd>
+      </div>
+    </dl>
+  </aside>
+</div>

@@ -1,0 +1,174 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.seasons {
+  display: grid;
+  gap: 20px;
+}
+
+.rounds {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 3rem 4.5rem minmax(0, 1fr) minmax(0, 14rem);
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+
+    &:first-child {
+      border-top: 0;
+    }
+  }
+
+  .rd {
+    font-weight: 600;
+  }
+
+  .date {
+    color: var(--muted);
+  }
+
+  .gp {
+    display: grid;
+    gap: 1px;
+
+    a {
+      font-size: var(--t-md);
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .muted {
+      font-size: var(--t-sm);
+    }
+  }
+
+  .outcome {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .winner-team {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.tag {
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: var(--t-xs);
+
+  &.upcoming {
+    border-color: var(--text);
+    color: var(--text);
+  }
+}
+
+.admin {
+  position: sticky;
+  top: 72px;
+}
+
+.lock {
+  font-size: var(--t-xs);
+  color: var(--muted);
+
+  &.is-open {
+    color: var(--flag-green);
+  }
+}
+
+.gate {
+  margin-bottom: 14px;
+  color: var(--muted);
+}
+
+.gate + .btn {
+  margin-bottom: 20px;
+}
+
+fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.notice {
+  margin-top: 14px;
+}
+
+.btn-primary {
+  justify-self: start;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .rounds li {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      'rd gp outcome'
+      'rd date outcome';
+    row-gap: 2px;
+  }
+
+  .rounds .rd {
+    grid-area: rd;
+  }
+
+  .rounds .gp {
+    grid-area: gp;
+  }
+
+  .rounds .date {
+    grid-area: date;
+    font-size: var(--t-sm);
+  }
+
+  .rounds .outcome {
+    grid-area: outcome;
+  }
+
+  .rounds .winner-team {
+    display: none;
+  }
+}

@@ -1,0 +1,98 @@
+<div class="page">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a routerLink="/races">Calendar</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ race()?.name ?? 'Race' }}</span>
+  </nav>
+
+  <app-load-state [state]="state()" subject="this race" [message]="errorMessage()" (retry)="load()" />
+
+  @if (state() === 'ready' && race(); as r) {
+    <header class="page-head">
+      <div>
+        <p class="round-line num">
+          Round {{ r.round_number }} of {{ neighbours().total }}, {{ r.season_year }}
+        </p>
+        <h1 class="page-title">{{ r.name }}</h1>
+        <p class="page-lede">{{ r.country }}, {{ formatDate(r.race_date) }}</p>
+      </div>
+      <nav class="stepper" aria-label="Other rounds this season">
+        @if (neighbours().previous; as prev) {
+          <a class="btn" [routerLink]="['/races', prev.id]">
+            <span aria-hidden="true">‹</span> R{{ prev.round_number }} {{ prev.country }}
+          </a>
+        }
+        @if (neighbours().next; as next) {
+          <a class="btn" [routerLink]="['/races', next.id]">
+            R{{ next.round_number }} {{ next.country }} <span aria-hidden="true">›</span>
+          </a>
+        }
+      </nav>
+    </header>
+
+    @if (rows().length) {
+      <ol class="podium" aria-label="Podium">
+        @for (row of podium(); track row.id) {
+          <li [style.--livery]="row.color">
+            <span class="p num">P{{ row.position }}</span>
+            <a class="big num" [routerLink]="['/drivers', row.driver.id]">{{ row.code }}</a>
+            <span class="who">{{ row.driver.name }}</span>
+            <span class="muted">{{ row.driver.team.name }}</span>
+          </li>
+        }
+      </ol>
+
+      <section class="panel" aria-labelledby="class-title">
+        <div class="panel-head">
+          <h2 id="class-title">Classification</h2>
+          <a class="panel-note" routerLink="/" [queryParams]="{ season: r.season_year }">Championship after {{ r.season_year }}</a>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <caption class="visually-hidden">{{ r.name }} {{ r.season_year }} classification</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="pos">Pos</th>
+                <th scope="col">Driver</th>
+                <th scope="col" class="col-team">Team</th>
+                <th scope="col"><span class="visually-hidden">Fastest lap</span></th>
+                <th scope="col" class="r">Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.id) {
+                <tr [style.--livery]="row.color">
+                  <td class="pos">{{ row.position }}</td>
+                  <td>
+                    <a class="driver" [routerLink]="['/drivers', row.driver.id]">
+                      <span class="code">{{ row.code }}</span> {{ row.driver.name }}
+                    </a>
+                  </td>
+                  <td class="col-team">
+                    <a class="team-inline muted" [routerLink]="['/teams', row.driver.team.id]">{{ row.driver.team.name }}</a>
+                  </td>
+                  <td>
+                    @if (row.fastest_lap) {
+                      <span class="fastest-lap" title="Fastest lap"><span class="fl-long">Fastest lap</span><span class="fl-short" aria-hidden="true">FL</span></span>
+                    }
+                  </td>
+                  <td class="r num pts">{{ row.points_earned }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    } @else if (upcoming()) {
+      <div class="notice">
+        <strong>Not run yet</strong>
+        <p>Results appear here once staff record the classification after {{ formatDate(r.race_date) }}.</p>
+      </div>
+    } @else {
+      <div class="notice">
+        <strong>No classification recorded</strong>
+        <p>This race is in the past, but no results have been entered for it.</p>
+      </div>
+    }
+  }
+</div>
