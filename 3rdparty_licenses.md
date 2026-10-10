@@ -14,3 +14,4 @@ distributed under.
 | https://github.com/actions/setup-python | actions/setup-python v7 (CI only) | MIT | https://github.com/actions/setup-python/blob/main/LICENSE |
 | https://github.com/actions/setup-node | actions/setup-node v6 (CI only) | MIT | https://github.com/actions/setup-node/blob/main/LICENSE |
 | https://github.com/actions/checkout | actions/checkout v7 (CI only) | MIT | https://github.com/actions/checkout/blob/main/LICENSE |
+| https://github.com/jsdom/jsdom | jsdom 30.1.1 (frontend tests) | MIT | https://github.com/jsdom/jsdom/blob/main/LICENSE.txt |
