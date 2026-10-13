@@ -7,7 +7,7 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Django 6.0](https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white)
-![DRF](https://img.shields.io/badge/DRF-3.17-A30000)
+![DRF](https://img.shields.io/badge/DRF-3.18-A30000)
 ![Angular 21](https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white)
 
 ![Demo: championship standings, a driver profile, the race calendar and a race classification, then signing in as the read-only demo user](docs/demo.gif)
@@ -100,7 +100,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 
 What you need to click:
 
-1. Click **Deploy to Render** above and sign in to Render with GitHub. If asked, give Render access to this repository.
+1. In the Render dashboard choose **New > Blueprint**, sign in with GitHub and select this repository (give Render access to it if asked). Render reads `render.yaml` from the repository root.
 2. Render shows the Blueprint with two resources, the web service `motorsport-api` and the database `motorsport-db`, both on the free plan. Enter any Blueprint name and click **Deploy Blueprint**. You don't need to enter any values: secrets are generated and `DATABASE_URL` is wired up automatically.
 3. Wait for the first build (a few minutes), then open the service URL shown in the dashboard (`https://motorsport-api-xxxx.onrender.com`). It redirects to Swagger UI, and `/api/health/` should return `{"status": "ok", ...}`.
 
@@ -120,7 +120,7 @@ Self-hosted production (GHCR images, Compose, rollback, backups, monitoring) is 
 | **Teams** | **Sign in** |
 | ![Teams with line-ups](docs/screenshots/teams.png) | ![Sign-in page with the demo button](docs/screenshots/login.png) |
 
-At 390 px (phone):
+At a 390 px viewport width:
 
 ![Standings, driver, calendar, race and teams screens at 390 px](docs/screenshots/mobile.png)
 
