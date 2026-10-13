@@ -13,7 +13,7 @@
   <a href="https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml/badge.svg?branch=master"></a>
   <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-blue"></a>
   <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white">
-  <img alt="Django 6.0" src="https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white">
+  <img alt="Django 6.1" src="https://img.shields.io/badge/django-6.1-092E20?logo=django&logoColor=white">
   <img alt="Angular 21" src="https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white">
 </p>
 
