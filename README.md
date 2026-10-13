@@ -120,7 +120,7 @@ Self-hosted production (GHCR images, Compose, rollback, backups, monitoring) is 
 | **Teams** | **Sign in** |
 | ![Teams with line-ups](docs/screenshots/teams.png) | ![Sign-in page with the demo button](docs/screenshots/login.png) |
 
-At 390 px (phone):
+At a 390 px viewport width:
 
 ![Standings, driver, calendar, race and teams screens at 390 px](docs/screenshots/mobile.png)
 
