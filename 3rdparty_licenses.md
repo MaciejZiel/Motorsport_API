@@ -18,6 +18,7 @@ distributed under.
 | https://github.com/encode/django-rest-framework | djangorestframework 3.18.1 | BSD-3-Clause | https://github.com/encode/django-rest-framework/blob/main/LICENSE.md |
 | https://github.com/pytest-dev/pytest-django | pytest-django 4.14.0 | BSD-3-Clause | https://github.com/pytest-dev/pytest-django/blob/main/LICENSE |
 | https://github.com/benoitc/gunicorn | gunicorn 26.2.0 | MIT | https://github.com/benoitc/gunicorn/blob/master/LICENSE |
+| https://github.com/jazzband/djangorestframework-simplejwt | djangorestframework-simplejwt 5.5.1 | MIT | https://github.com/jazzband/djangorestframework-simplejwt/blob/master/LICENSE.txt |
 | https://github.com/evansd/whitenoise | whitenoise 6.12.0 | MIT | https://github.com/evansd/whitenoise/blob/main/LICENSE |
 | https://github.com/adamchainz/django-cors-headers | django-cors-headers 4.9.0 | MIT | https://github.com/adamchainz/django-cors-headers/blob/main/LICENSE |
 | https://github.com/pytest-dev/pytest-cov | pytest-cov 7.1.0 | MIT | https://github.com/pytest-dev/pytest-cov/blob/master/LICENSE |
