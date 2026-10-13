@@ -6,7 +6,7 @@ django-cors-headers==4.9.0
 django-redis==6.0.0
 djangorestframework==3.18.1
 djangorestframework_simplejwt==5.5.1
-drf-spectacular==0.29.0
+drf-spectacular==0.30.0
 drf-spectacular-sidecar==2026.9.1
 gunicorn==26.2.0
 inflection==0.5.1
