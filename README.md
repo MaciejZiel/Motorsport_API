@@ -100,7 +100,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 
 What you need to click:
 
-1. Click **Deploy to Render** above and sign in to Render with GitHub. If asked, give Render access to this repository.
+1. In the Render dashboard choose **New > Blueprint**, sign in with GitHub and select this repository (give Render access to it if asked). Render reads `render.yaml` from the repository root.
 2. Render shows the Blueprint with two resources, the web service `motorsport-api` and the database `motorsport-db`, both on the free plan. Enter any Blueprint name and click **Deploy Blueprint**. You don't need to enter any values: secrets are generated and `DATABASE_URL` is wired up automatically.
 3. Wait for the first build (a few minutes), then open the service URL shown in the dashboard (`https://motorsport-api-xxxx.onrender.com`). It redirects to Swagger UI, and `/api/health/` should return `{"status": "ok", ...}`.
 
