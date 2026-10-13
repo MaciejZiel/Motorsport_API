@@ -29,3 +29,7 @@ distributed under.
 | https://github.com/jazzband/django-redis | django-redis 7.0.0 | BSD-3-Clause | https://github.com/jazzband/django-redis/blob/master/LICENSE |
 | https://github.com/pytest-dev/pytest-cov | pytest-cov 7.1.0 | MIT | https://github.com/pytest-dev/pytest-cov/blob/master/LICENSE |
 | https://hub.docker.com/_/nginx | nginx 1.31-alpine (frontend Docker base image) | BSD-2-Clause | https://github.com/nginx/nginx/blob/master/LICENSE |
+| https://github.com/piscinajs/piscina | piscina 5.3.2 (dev only, npm override for @angular/build) | MIT | https://github.com/piscinajs/piscina/blob/main/LICENSE.md |
+| https://github.com/modelcontextprotocol/typescript-sdk | @modelcontextprotocol/sdk 1.31.0 (dev only, Angular CLI transitive) | MIT | https://github.com/modelcontextprotocol/typescript-sdk/blob/main/LICENSE |
+| https://github.com/kornelski/http-cache-semantics | http-cache-semantics 4.3.0 (dev only, transitive) | BSD-2-Clause | https://github.com/kornelski/http-cache-semantics/blob/master/LICENSE |
+| https://github.com/7rulnik/source-map-js | source-map-js 1.2.2 (dev only, transitive) | BSD-3-Clause | https://github.com/7rulnik/source-map-js/blob/main/LICENSE |
