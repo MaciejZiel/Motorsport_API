@@ -1,18 +1,27 @@
-# Motorsport API
+<p align="center">
+  <img src="docs/logo.svg" width="72" height="72" alt="Motorsport API logo">
+</p>
 
-A Django REST API for a fictional motorsport championship (teams, drivers, seasons, races, results) with computed standings, cookie- or token-based JWT auth and an Angular dashboard on top.
+<h1 align="center">Motorsport API</h1>
 
-[![CI](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Django 6.0](https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white)
-![DRF](https://img.shields.io/badge/DRF-3.18-A30000)
-![Angular 21](https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white)
+<p align="center">
+  <b>A Django REST API for a fictional motorsport championship (teams, drivers, seasons, races, results) with computed standings, cookie- or token-based JWT auth and an Angular dashboard on top.</b>
+</p>
 
-![Demo: championship standings, a driver profile, the race calendar and a race classification, then signing in as the read-only demo user](docs/demo.gif)
+<p align="center">
+  <a href="https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/MaciejZiel/Motorsport_API/actions/workflows/ci.yml/badge.svg?branch=master"></a>
+  <a href="https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/MaciejZiel/Motorsport_API/actions/workflows/codeql.yml/badge.svg?branch=master"></a>
+  <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-blue"></a>
+  <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white">
+  <img alt="Django 6.0" src="https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white">
+  <img alt="Angular 21" src="https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white">
+</p>
 
-## What it does
+<p align="center">
+  <img src="docs/demo.gif" width="860" alt="Demo: championship standings, a driver profile, the race calendar and a race classification, then signing in as the read-only demo user">
+</p>
+
+## ✨ Features
 
 - **CRUD API (`/api/v1/`)** for teams, drivers, seasons, races and race results, with filtering, pagination and database constraints (one result per driver per race, unique positions, one fastest lap per race).
 - **Standings and stats**: driver and constructor standings per season (points, wins, podiums) are computed with SQL aggregation; `/api/v1/stats/` summarises the whole dataset.
@@ -20,7 +29,43 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 - **Production plumbing**: OpenAPI docs (Swagger UI / ReDoc), health check, Prometheus metrics, `X-Request-ID` tracing in responses and logs, throttling, a strict Content-Security-Policy and env-driven HTTPS settings.
 - **Angular 21 frontend** ("Pit Wall": live standings with a timing tower, driver profiles with a points chart, race calendar and classifications, teams, one-click read-only demo sign-in, staff-only add-race form) served by Nginx, which proxies `/api/` to Django. Every number on screen comes from the API.
 
-## Architecture
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/standings.png" width="49%" alt="Drivers' and constructors' standings with last and next race">
+  <img src="docs/screenshots/driver.png" width="49%" alt="Driver profile with points progression chart">
+</p>
+
+<p align="center"><sub>Standings · Driver profile</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/race.png" width="49%" alt="Race classification with podium">
+  <img src="docs/screenshots/calendar-demo.png" width="49%" alt="Calendar with the staff-only form locked">
+</p>
+
+<p align="center"><sub>Race classification · Calendar (signed in as the read-only demo user)</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/teams.png" width="49%" alt="Teams with line-ups">
+  <img src="docs/screenshots/login.png" width="49%" alt="Sign-in page with the demo button">
+</p>
+
+<p align="center"><sub>Teams · Sign in</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" width="860" alt="Standings, driver, calendar, race and teams screens at 390 px">
+</p>
+
+<p align="center"><sub>At a 390 px viewport width</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/swagger.png" width="860" alt="Swagger UI">
+</p>
+
+<p align="center"><sub>Swagger UI</sub></p>
+
+## 🧭 Architecture
+
 
 ```mermaid
 flowchart LR
@@ -34,14 +79,17 @@ flowchart LR
 
 Without `DATABASE_URL` / `DJANGO_DB_ENGINE` the API falls back to SQLite, and without `DJANGO_CACHE_URL` to an in-process cache, so it also runs as a single process with no services.
 
-## Tech stack
+## 🛠 Tech stack
 
-- **Backend:** Python 3.12, Django 6, Django REST Framework, SimpleJWT, drf-spectacular, gunicorn, WhiteNoise
-- **Data:** PostgreSQL 16 (SQLite for local dev), Redis (shared cache for throttling)
-- **Frontend:** Angular 21, TypeScript, Vitest, served by Nginx
-- **Ops:** Docker Compose, GitHub Actions (CI + image publishing to GHCR), Prometheus rules, Render Blueprint
+| Layer | Used |
+|---|---|
+| Backend | Python 3.12, Django 6, Django REST Framework, SimpleJWT, drf-spectacular, gunicorn, WhiteNoise |
+| Data | PostgreSQL 16 (SQLite for local dev), Redis (shared cache for throttling) |
+| Frontend | Angular 21, TypeScript, Vitest, served by Nginx |
+| Ops | Docker Compose, GitHub Actions (CI + image publishing to GHCR), Prometheus rules, Render Blueprint |
 
-## Quick start
+## 🚀 Quick start
+
 
 **Option A: Docker** (PostgreSQL, Redis, API and frontend):
 
@@ -74,7 +122,8 @@ npm --prefix frontend install
 npm --prefix frontend run start    # http://localhost:4200, proxies /api to :8000
 ```
 
-## Tests
+## 🧪 Tests
+
 
 ```bash
 pytest --cov=Motorsport_API --cov=racing --cov-config=.coveragerc   # backend
@@ -87,14 +136,16 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 - **CI** also runs ruff, `pip-audit`, `npm audit`, a missing-migrations check, `manage.py check --deploy` with production settings, a frontend build and a Docker Compose smoke test that registers, logs in and logs out through the frontend proxy and checks that the API docs assets load.
 - **Security scanning:** CodeQL analyses the Python and TypeScript code on pushes and pull requests to `master` and weekly; Dependabot proposes grouped weekly updates for pip, npm, Docker images and GitHub Actions.
 
-## Key technical decisions
+## 🧱 Key technical decisions
+
 
 - **JWT in `HttpOnly` cookies for the SPA, Bearer tokens for scripts.** Tokens in `localStorage` can be read by any XSS payload; cookies cannot, but they bring CSRF back. So unsafe cookie-authenticated requests require a CSRF token (`/api/v1/auth/csrf/`), while `/auth/token/` stays available for clients that are not browsers.
 - **Standings are aggregated on read, driver points are denormalised.** Season standings come from one `GROUP BY` query (`Sum` plus conditional `Count` for wins and podiums), so they cannot drift from the results. `Driver.points` is a stored total kept in sync whenever a result is saved or deleted, which keeps the drivers list cheap to filter and sort.
 - **A strict CSP by default.** `script-src 'self'` blocks the CDN-hosted Swagger UI that drf-spectacular uses by default, so the docs assets are bundled (`drf-spectacular-sidecar`) and the Swagger init script is loaded as a separate same-origin file instead of being inlined.
 - **Simple in-process metrics.** `/api/metrics/` is a small Prometheus exporter without the `prometheus_client` multiprocess setup. The cost is that gunicorn runs one worker by default so the counters stay consistent. That is fine for this load, but it is the first thing to change when scaling out.
 
-## Deploying
+## 🚢 Deploying
+
 
 `render.yaml` is a [Render Blueprint](https://render.com/docs/blueprint-spec) for a free demo: the API runs from the existing `Dockerfile`, with a managed PostgreSQL database. On every start, `scripts/render_start.sh` runs migrations, seeds the sample data and a read-only demo user (both idempotent), then starts gunicorn on Render's `$PORT`. The free plan has no pre-deploy hook, which is why this happens at start-up.
 
@@ -110,25 +161,8 @@ What the Blueprint sets: `DJANGO_ENV=production` (HTTPS redirect, secure cookies
 
 Self-hosted production (GHCR images, Compose, rollback, backups, monitoring) is documented in [docs/operations.md](docs/operations.md) and [docs/runbooks/production-deployment.md](docs/runbooks/production-deployment.md).
 
-## Screenshots
+## 🚧 Limitations and next steps
 
-| Standings | Driver profile |
-| --- | --- |
-| ![Drivers' and constructors' standings with last and next race](docs/screenshots/standings.png) | ![Driver profile with points progression chart](docs/screenshots/driver.png) |
-| **Race classification** | **Calendar (signed in as the read-only demo user)** |
-| ![Race classification with podium](docs/screenshots/race.png) | ![Calendar with the staff-only form locked](docs/screenshots/calendar-demo.png) |
-| **Teams** | **Sign in** |
-| ![Teams with line-ups](docs/screenshots/teams.png) | ![Sign-in page with the demo button](docs/screenshots/login.png) |
-
-At a 390 px viewport width:
-
-![Standings, driver, calendar, race and teams screens at 390 px](docs/screenshots/mobile.png)
-
-Swagger UI:
-
-![Swagger UI](docs/screenshots/swagger.png)
-
-## Limitations and next steps
 
 - The data is fictional sample data. There is no import from a real timing or results feed.
 - The Render Blueprint deploys only the API (with Swagger UI as its landing page). The Angular frontend is not part of it yet.
@@ -137,6 +171,7 @@ Swagger UI:
 - Render's free tier puts the service to sleep when idle, so the first request after a pause is slow. Free PostgreSQL instances also have a limited lifetime (see Render's pricing docs).
 - With `SEED_DEMO_DATA=true`, every restart restores the sample rows to their seeded values. Set it to `false` once you want to keep your own edits.
 
-## License
+## 📄 Licence
+
 
 Released under the [MIT License](LICENSE). Third-party components added to the repository are listed in [3rdparty_licenses.md](3rdparty_licenses.md).
