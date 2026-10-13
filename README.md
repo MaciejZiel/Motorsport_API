@@ -21,7 +21,7 @@
   <img src="docs/demo.gif" width="860" alt="Demo: championship standings, a driver profile, the race calendar and a race classification, then signing in as the read-only demo user">
 </p>
 
-## ✨ Features
+## Features
 
 - **CRUD API (`/api/v1/`)** for teams, drivers, seasons, races and race results, with filtering, pagination and database constraints (one result per driver per race, unique positions, one fastest lap per race).
 - **Standings and stats**: driver and constructor standings per season (points, wins, podiums) are computed with SQL aggregation; `/api/v1/stats/` summarises the whole dataset.
@@ -29,7 +29,7 @@
 - **Production plumbing**: OpenAPI docs (Swagger UI / ReDoc), health check, Prometheus metrics, `X-Request-ID` tracing in responses and logs, throttling, a strict Content-Security-Policy and env-driven HTTPS settings.
 - **Angular 21 frontend** ("Pit Wall": live standings with a timing tower, driver profiles with a points chart, race calendar and classifications, teams, one-click read-only demo sign-in, staff-only add-race form) served by Nginx, which proxies `/api/` to Django. Every number on screen comes from the API.
 
-## 📸 Screenshots
+## Screenshots
 
 <p align="center">
   <img src="docs/screenshots/standings.png" width="49%" alt="Drivers' and constructors' standings with last and next race">
@@ -64,7 +64,7 @@
 
 <p align="center"><sub>Swagger UI</sub></p>
 
-## 🧭 Architecture
+## Architecture
 
 
 ```mermaid
@@ -79,7 +79,7 @@ flowchart LR
 
 Without `DATABASE_URL` / `DJANGO_DB_ENGINE` the API falls back to SQLite, and without `DJANGO_CACHE_URL` to an in-process cache, so it also runs as a single process with no services.
 
-## 🛠 Tech stack
+## Tech stack
 
 | Layer | Used |
 |---|---|
@@ -88,7 +88,7 @@ Without `DATABASE_URL` / `DJANGO_DB_ENGINE` the API falls back to SQLite, and wi
 | Frontend | Angular 21, TypeScript, Vitest, served by Nginx |
 | Ops | Docker Compose, GitHub Actions (CI + image publishing to GHCR), Prometheus rules, Render Blueprint |
 
-## 🚀 Quick start
+## Quick start
 
 
 **Option A: Docker** (PostgreSQL, Redis, API and frontend):
@@ -122,7 +122,7 @@ npm --prefix frontend install
 npm --prefix frontend run start    # http://localhost:4200, proxies /api to :8000
 ```
 
-## 🧪 Tests
+## Tests
 
 
 ```bash
@@ -136,7 +136,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 - **CI** also runs ruff, `pip-audit`, `npm audit`, a missing-migrations check, `manage.py check --deploy` with production settings, a frontend build and a Docker Compose smoke test that registers, logs in and logs out through the frontend proxy and checks that the API docs assets load.
 - **Security scanning:** CodeQL analyses the Python and TypeScript code on pushes and pull requests to `master` and weekly; Dependabot proposes grouped weekly updates for pip, npm, Docker images and GitHub Actions.
 
-## 🧱 Key technical decisions
+## Key technical decisions
 
 
 - **JWT in `HttpOnly` cookies for the SPA, Bearer tokens for scripts.** Tokens in `localStorage` can be read by any XSS payload; cookies cannot, but they bring CSRF back. So unsafe cookie-authenticated requests require a CSRF token (`/api/v1/auth/csrf/`), while `/auth/token/` stays available for clients that are not browsers.
@@ -144,7 +144,7 @@ bash scripts/e2e_compose_smoke.sh                                     # full sta
 - **A strict CSP by default.** `script-src 'self'` blocks the CDN-hosted Swagger UI that drf-spectacular uses by default, so the docs assets are bundled (`drf-spectacular-sidecar`) and the Swagger init script is loaded as a separate same-origin file instead of being inlined.
 - **Simple in-process metrics.** `/api/metrics/` is a small Prometheus exporter without the `prometheus_client` multiprocess setup. The cost is that gunicorn runs one worker by default so the counters stay consistent. That is fine for this load, but it is the first thing to change when scaling out.
 
-## 🚢 Deploying
+## Deploying
 
 
 `render.yaml` is a [Render Blueprint](https://render.com/docs/blueprint-spec) for a free demo: the API runs from the existing `Dockerfile`, with a managed PostgreSQL database. On every start, `scripts/render_start.sh` runs migrations, seeds the sample data and a read-only demo user (both idempotent), then starts gunicorn on Render's `$PORT`. The free plan has no pre-deploy hook, which is why this happens at start-up.
@@ -161,7 +161,7 @@ What the Blueprint sets: `DJANGO_ENV=production` (HTTPS redirect, secure cookies
 
 Self-hosted production (GHCR images, Compose, rollback, backups, monitoring) is documented in [docs/operations.md](docs/operations.md) and [docs/runbooks/production-deployment.md](docs/runbooks/production-deployment.md).
 
-## 🚧 Limitations and next steps
+## Limitations and next steps
 
 
 - The data is fictional sample data. There is no import from a real timing or results feed.
@@ -171,7 +171,7 @@ Self-hosted production (GHCR images, Compose, rollback, backups, monitoring) is 
 - Render's free tier puts the service to sleep when idle, so the first request after a pause is slow. Free PostgreSQL instances also have a limited lifetime (see Render's pricing docs).
 - With `SEED_DEMO_DATA=true`, every restart restores the sample rows to their seeded values. Set it to `false` once you want to keep your own edits.
 
-## 📄 Licence
+## Licence
 
 
 Released under the [MIT License](LICENSE). Third-party components added to the repository are listed in [3rdparty_licenses.md](3rdparty_licenses.md).
