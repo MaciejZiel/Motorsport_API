@@ -7,7 +7,7 @@ A Django REST API for a fictional motorsport championship (teams, drivers, seaso
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Django 6.0](https://img.shields.io/badge/django-6.0-092E20?logo=django&logoColor=white)
-![DRF](https://img.shields.io/badge/DRF-3.17-A30000)
+![DRF](https://img.shields.io/badge/DRF-3.18-A30000)
 ![Angular 21](https://img.shields.io/badge/angular-21-DD0031?logo=angular&logoColor=white)
 
 ![Demo: championship standings, a driver profile, the race calendar and a race classification, then signing in as the read-only demo user](docs/demo.gif)
