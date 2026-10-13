@@ -20,6 +20,7 @@ distributed under.
 | https://github.com/actions/checkout | actions/checkout v7 (CI only) | MIT | https://github.com/actions/checkout/blob/main/LICENSE |
 | https://github.com/psycopg/psycopg | psycopg[binary] 3.3.6 (pre-existing dependency) | LGPL-3.0-only | https://github.com/psycopg/psycopg/blob/master/LICENSE.txt |
 | https://github.com/encode/django-rest-framework | djangorestframework 3.18.1 | BSD-3-Clause | https://github.com/encode/django-rest-framework/blob/main/LICENSE.md |
+| https://github.com/django/django | Django 6.1.2 | BSD-3-Clause | https://github.com/django/django/blob/main/LICENSE |
 | https://github.com/pytest-dev/pytest-django | pytest-django 4.14.0 | BSD-3-Clause | https://github.com/pytest-dev/pytest-django/blob/main/LICENSE |
 | https://github.com/benoitc/gunicorn | gunicorn 26.2.0 | MIT | https://github.com/benoitc/gunicorn/blob/master/LICENSE |
 | https://github.com/jazzband/djangorestframework-simplejwt | djangorestframework-simplejwt 5.5.1 | MIT | https://github.com/jazzband/djangorestframework-simplejwt/blob/master/LICENSE.txt |
