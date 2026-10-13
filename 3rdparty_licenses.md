@@ -13,6 +13,7 @@ distributed under.
 | https://fonts.google.com/specimen/IBM+Plex+Mono (loaded from Google Fonts by the frontend) | IBM Plex Mono | OFL-1.1 | https://github.com/IBM/plex/blob/master/LICENSE.txt |
 | https://github.com/actions/setup-python | actions/setup-python v7 (CI only) | MIT | https://github.com/actions/setup-python/blob/main/LICENSE |
 | https://github.com/actions/setup-node | actions/setup-node v6 (CI only) | MIT | https://github.com/actions/setup-node/blob/main/LICENSE |
+| https://github.com/pytest-dev/pytest | pytest 9.1.1 | MIT | https://github.com/pytest-dev/pytest/blob/main/LICENSE |
 | https://github.com/actions/checkout | actions/checkout v7 (CI only) | MIT | https://github.com/actions/checkout/blob/main/LICENSE |
 | https://github.com/psycopg/psycopg | psycopg[binary] 3.3.6 (pre-existing dependency) | LGPL-3.0-only | https://github.com/psycopg/psycopg/blob/master/LICENSE.txt |
 | https://github.com/encode/django-rest-framework | djangorestframework 3.18.1 | BSD-3-Clause | https://github.com/encode/django-rest-framework/blob/main/LICENSE.md |
