@@ -28,4 +28,4 @@ distributed under.
 | https://github.com/adamchainz/django-cors-headers | django-cors-headers 4.9.0 | MIT | https://github.com/adamchainz/django-cors-headers/blob/main/LICENSE |
 | https://github.com/jazzband/django-redis | django-redis 7.0.0 | BSD-3-Clause | https://github.com/jazzband/django-redis/blob/master/LICENSE |
 | https://github.com/pytest-dev/pytest-cov | pytest-cov 7.1.0 | MIT | https://github.com/pytest-dev/pytest-cov/blob/master/LICENSE |
-| https://hub.docker.com/_/nginx | nginx 1.29-alpine (frontend Docker base image) | BSD-2-Clause | https://github.com/nginx/nginx/blob/master/LICENSE |
+| https://hub.docker.com/_/nginx | nginx 1.31-alpine (frontend Docker base image) | BSD-2-Clause | https://github.com/nginx/nginx/blob/master/LICENSE |
